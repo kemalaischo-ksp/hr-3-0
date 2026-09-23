@@ -11,7 +11,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/pg:/var/lib/postgresql/data
-    healthcheck:      test: ["CMD-SHELL", "pg_isready -U hr30 -d hr30_aw3"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hr30 -d hr30_aw3"]
       interval: 5s
       timeout: 5s
       retries: 10
