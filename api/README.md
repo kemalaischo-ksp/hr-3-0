@@ -20,6 +20,8 @@ Rute non-API otomatis fallback ke `index.html` (SPA).
 | GET | `/api/health` | publik |
 | POST | `/api/login` `{email,password}` / `{identifier,password}` | publik (rate-limit 10x/10 mnt) |
 | POST | `/api/logout` · GET `/api/me` | login |
+| POST | `/api/forgot-password` `{email}` | publik (rate-limit; selalu respons generik; kirim tautan 1 jam via Resend bila `RESEND_API_KEY` diset) |
+| POST | `/api/reset-password` `{token,password≥8}` | publik (rate-limit; token 1x pakai) |
 | GET | `/api/employees`, `/api/employees/:id` | scope cabang; tanpa NIK/norek |
 | POST | `/api/employees/:id/activate` | mesin 3-tahap (bawah) |
 | GET | `/api/employees/:id/aktivasi-log` | hr_cabang (cabangnya), master_admin |

@@ -272,10 +272,17 @@ export const api = {
       });
       return { ok: true, message: msg };
     } catch (e) {
-      // Backend belum sediakan endpoint: tetap beri instruksi aman tanpa bocorkan status akun.
+      // Toleransi bila backend lama/404: tetap beri instruksi aman tanpa bocorkan status akun.
       if (e instanceof ApiError && e.status === 404) return { ok: true, message: msg };
       throw e;
     }
+  },
+  async resetPassword(token: string, password: string): Promise<{ ok: boolean }> {
+    if (ALLOW_MOCK) return { ok: true };
+    return req<{ ok: boolean }>("/api/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
   },
   me(): Promise<SessionUser> {
     if (ALLOW_MOCK)

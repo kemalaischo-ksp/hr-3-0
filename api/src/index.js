@@ -275,6 +275,102 @@ app.post("/api/logout", (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- Lupa / reset kata sandi via Resend ----------
+// POST /api/forgot-password {email} — publik, SELALU respons generik (anti-enumerasi akun).
+// Bila RESEND_API_KEY diset: kirim tautan 1x pakai (kedaluwarsa 1 jam) via Resend.
+// Bila tidak: tautan hanya dicatat di log server (mode dev).
+async function sha256hex(s) {
+  const d = await crypto.subtle.digest("SHA-256", enc(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function tokenAcak(n = 32) {
+  return bytesToB64url(crypto.getRandomValues(new Uint8Array(n)));
+}
+function baseUrlPublik() {
+  return (
+    (process.env.APP_URL || "").trim() ||
+    (process.env.CORS_ORIGIN || "").split(",")[0].trim() ||
+    "https://hr.ksp-nextcloud.my.id"
+  );
+}
+async function kirimEmailResend({ to, subject, html, text }) {
+  const key = process.env.RESEND_API_KEY || "";
+  if (!key) throw new Error("RESEND_API_KEY belum dikonfigurasi");
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM || "HRIS AL-WILDAN <hr@alwildan.sch.id>",
+      to, subject, html, text,
+    }),
+  });
+  if (!r.ok) throw new Error(`Resend menolak (${r.status}): ${(await r.text()).slice(0, 200)}`);
+}
+
+const PESAN_LUPA = "Jika email terdaftar, tautan reset sudah dikirim. Cek inbox/spam dalam 10 menit.";
+app.post("/api/forgot-password", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const email = String(b.email || "").trim().toLowerCase();
+  const ip = c.req.header("X-Forwarded-For") || "local";
+  if (!loginAllowed(`fp:${ip}:${email}`)) return c.json({ error: "Terlalu banyak permintaan. Coba lagi 10 menit." }, 429);
+  if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    const user = await c.env.DB.prepare(
+      "SELECT id, email, name, aktif FROM users WHERE lower(email) = ?"
+    ).bind(email).first();
+    if (user && user.aktif !== 0) {
+      const token = tokenAcak();
+      await c.env.DB.prepare(
+        "DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL"
+      ).bind(user.id).run();
+      await c.env.DB.prepare(
+        "INSERT INTO password_reset_tokens (token_hash, user_id) VALUES (?,?)"
+      ).bind(await sha256hex(token), user.id).run();
+      const tautan = `${baseUrlPublik()}/reset-password?token=${token}`;
+      const subject = "Tautan reset kata sandi HRIS AL-WILDAN";
+      const text =
+        `Assalamu'alaikum ${user.name || user.email},\n\n` +
+        `Kami menerima permintaan reset kata sandi akun HRIS AL-WILDAN Anda.\n` +
+        `Klik tautan berikut (berlaku 1 jam, satu kali pakai):\n${tautan}\n\n` +
+        `Abaikan email ini bila Anda tidak memintanya.`;
+      const html =
+        `<p>Assalamu'alaikum ${user.name || user.email},</p>` +
+        `<p>Kami menerima permintaan reset kata sandi akun HRIS AL-WILDAN Anda. ` +
+        `Klik tombol berikut (berlaku <b>1 jam</b>, satu kali pakai):</p>` +
+        `<p><a href="${tautan}" style="display:inline-block;padding:10px 20px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px">Reset kata sandi</a></p>` +
+        `<p>Bila tombol tidak berfungsi, salin tautan ini:<br><code>${tautan}</code></p>` +
+        `<p>Abaikan email ini bila Anda tidak memintanya.</p>`;
+      try {
+        await kirimEmailResend({ to: user.email, subject, html, text });
+      } catch (e) {
+        // Jangan bocorkan ke user; admin cek log server.
+        console.error("GAGAL kirim reset via Resend:", e.message);
+      }
+      if (!process.env.RESEND_API_KEY) console.log(`[dev] tautan reset ${user.email}: ${tautan}`);
+    }
+  }
+  return c.json({ ok: true, message: PESAN_LUPA });
+});
+
+// POST /api/reset-password {token, password} — publik (rate-limit), token 1x pakai.
+app.post("/api/reset-password", async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const token = String(b.token || "");
+  const password = String(b.password || "");
+  const ip = c.req.header("X-Forwarded-For") || "local";
+  if (!loginAllowed(`rs:${ip}`)) return c.json({ error: "Terlalu banyak percobaan. Coba lagi 10 menit." }, 429);
+  if (!token) return c.json({ error: "Token reset wajib" }, 400);
+  if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  const row = await c.env.DB.prepare(
+    "SELECT token_hash, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ?"
+  ).bind(await sha256hex(token)).first();
+  if (!row || row.used_at || new Date(row.expires_at).getTime() < Date.now()) {
+    return c.json({ error: "Tautan tidak valid atau kedaluwarsa. Minta tautan baru di halaman Lupa Kata Sandi." }, 400);
+  }
+  await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), row.user_id).run();
+  await c.env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id = ?").bind(row.user_id).run();
+  return c.json({ ok: true });
+});
+
 app.get("/api/me", auth, (c) => {
   const u = c.get("user");
   return c.json({ id: u.id, email: u.email, name: u.name, role: u.role, unit_id: u.unit_id, permissions: effPerms(u) });

@@ -13,6 +13,7 @@ import { Kinerja } from "./pages/Kinerja";
 import { Laporan } from "./pages/Laporan";
 import { Login } from "./pages/Login";
 import { LupaPassword } from "./pages/LupaPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Notifikasi } from "./pages/Notifikasi";
 import { Pengajuan } from "./pages/Pengajuan";
 import { Pengaturan } from "./pages/Pengaturan";
@@ -48,6 +49,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/lupa-password" element={<LupaPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<Guard><Shell /></Guard>}>
           <Route index element={<Dashboard />} />
           <Route path="profil" element={<ProfilSaya />} />
