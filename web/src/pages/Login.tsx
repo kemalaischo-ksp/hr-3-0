@@ -7,12 +7,28 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { api } from "../lib/api";
 
+const DEMO_ACCOUNTS = [
+  { role: "master_admin", label: "Master Admin", name: "Master Admin", email: "admin@alwildan.sch.id", password: "alwildan123" },
+  { role: "hr_cabang", label: "HR Cabang", name: "HR SMPIT Insani", email: "hr.insani@alwildan.sch.id", password: "alwildan123" },
+  { role: "pegawai", label: "Pegawai", name: "Budi Santoso, S.Pd", email: "budi.santoso@alwildan.sch.id", password: "alwildan123" },
+];
+// Panel akun demo hanya untuk DEV / mode mock. Di build produksi panel
+// disembunyikan kecuali VITE_SHOW_DEMO_LOGIN=1 diset eksplisit.
+const SHOW_DEMO =
+  api.useMock || import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_LOGIN === "1";
+
 export function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("hr.aw3@alwildan.sch.id");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const pilihAkun = (a: (typeof DEMO_ACCOUNTS)[number]) => {
+    setEmail(a.email);
+    setPassword(a.password);
+    setErr(null);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +106,39 @@ export function Login() {
                 <p className="rounded-md border border-dashed border-input bg-muted px-3 py-2 text-xs text-muted-foreground">
                   Mode demo: email apa pun bisa masuk (tanpa backend).
                 </p>
+              ) : null}
+              {SHOW_DEMO ? (
+                <div className="rounded-md border border-dashed border-input bg-muted/50 px-3 py-3">
+                  <p className="text-xs font-semibold text-foreground">
+                    Akses cepat — 3 peran
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Klik untuk mengisi email + sandi demo lokal, lalu tekan Get Started.
+                  </p>
+                  <div className="mt-2 grid gap-2">
+                    {DEMO_ACCOUNTS.map((a) => (
+                      <button
+                        key={a.role}
+                        type="button"
+                        onClick={() => pilihAkun(a)}
+                        className={`flex items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors hover:bg-background ${
+                          email === a.email ? "border-primary bg-background" : "border-input bg-background/60"
+                        }`}
+                      >
+                        <span>
+                          <span className="block font-semibold text-foreground">{a.label}</span>
+                          <span className="block text-muted-foreground">{a.name} · {a.email}</span>
+                        </span>
+                        <span className="ml-2 shrink-0 rounded bg-primary/10 px-2 py-1 font-mono text-[10px] text-primary">
+                          {email === a.email ? "dipilih" : "isi"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+                    Sandi demo: alwildan123 · wajib diganti sebelum go-live
+                  </p>
+                </div>
               ) : null}
             </CardContent>
           </Card>

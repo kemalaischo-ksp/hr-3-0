@@ -66,6 +66,16 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Teks brand glowing — gradien pink→biru + cahaya lembut */
+.glow-brand {
+  background: linear-gradient(90deg, #e14eca 0%, #9b27b0 50%, #1d8cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  filter: drop-shadow(0 0 5px rgba(225, 78, 202, 0.55));
+}
+
 /* Cetak slip: hanya kartu slip, tanpa navigasi/tombol */
 @media print {
   header,

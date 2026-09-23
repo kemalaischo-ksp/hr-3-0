@@ -1,5 +1,5 @@
 // Migrasi HR 3.0 (mandiri — tak bergantung folder HR 2.0).
-//   node migrate.js            → baseline (bila DB kosong) + 001 + 002
+//   node migrate.js            → baseline (bila DB kosong) + 001 s.d. 010
 //   node migrate.js --seed     → + seeds/aw3_pilot.sql (data uji, JANGAN di produksi)
 // Lokasi SQL: ../db (dev) atau $DB_DIR (Docker: /app/db).
 import pg from "pg";
@@ -19,7 +19,7 @@ try {
   const files = [];
   if (!cek.rows[0].t) files.push(`${DIR}/base/00_schema_dasar.sql`, `${DIR}/base/01_seed_dasar.sql`);
   else console.log("Skema dasar sudah ada — lewati baseline.");
-  files.push(`${DIR}/migrations/001_hr30_pilot_aw3.sql`, `${DIR}/migrations/002_nip_sequence.sql`, `${DIR}/migrations/003_user_permissions.sql`, `${DIR}/migrations/004_modul_lanjutan.sql`, `${DIR}/migrations/005_koreksi_presensi.sql`, `${DIR}/migrations/006_gateway_undangan.sql`, `${DIR}/migrations/007_password_reset.sql`);
+  files.push(`${DIR}/migrations/001_hr30_pilot_aw3.sql`, `${DIR}/migrations/002_nip_sequence.sql`, `${DIR}/migrations/003_user_permissions.sql`, `${DIR}/migrations/004_modul_lanjutan.sql`, `${DIR}/migrations/005_koreksi_presensi.sql`, `${DIR}/migrations/006_gateway_undangan.sql`, `${DIR}/migrations/007_password_reset.sql`, `${DIR}/migrations/008_cabang_list.sql`, `${DIR}/migrations/009_units_per_cabang.sql`, `${DIR}/migrations/010_seed_atasan.sql`);
   if (withSeed) files.push(`${DIR}/seeds/aw3_pilot.sql`);
   for (const f of files) {
     console.log("Terapkan", f);
