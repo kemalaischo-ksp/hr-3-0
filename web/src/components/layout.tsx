@@ -73,7 +73,7 @@ export function Shell() {
         <img src={logo} alt="AL-WILDAN" className="h-10 w-10 rounded-full bg-white object-cover shadow-sm" />
         <div className="leading-tight">
           <p className="text-[14px] font-bold text-foreground">HRIS AL-WILDAN</p>
-          <p className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">White · AW3</p>
+          <p className="glow-brand text-[10px] uppercase tracking-[.18em]">KSP - HOLDING</p>
         </div>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">

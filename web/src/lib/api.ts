@@ -26,6 +26,7 @@ export interface Employee {
   tgl_masuk?: string | null;
   atasan_id?: number | null;
   atasan_nama?: string | null;
+  cabang?: string | null;
   foto_url?: string | null;
   kontak_darurat?: string | null;
 }
@@ -296,6 +297,7 @@ export const api = {
   createEmployee(body: {
     nama_gelar: string; unit_id: number; email?: string; no_hp?: string;
     posisi_diajukan?: string; mapel?: string; nip?: string;
+    atasan_id?: number | null; cabang_lainnya?: string;
     nik_ktp?: string; alamat?: string; tempat_lahir?: string; tgl_lahir?: string;
     status_kawin?: string; tinggi_cm?: number | null; berat_kg?: number | null;
     transport?: string; gaji_diajukan?: number | null;
@@ -376,7 +378,7 @@ export const api = {
     if (ALLOW_MOCK) throw new Error("Mode demo: kelola pengguna butuh backend.");
     return req(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(body) });
   },
-  units(): Promise<{ id: number; nama: string; kode: string; cabang: string | null }[]> {
+  units(): Promise<{ id: number; nama: string; kode: string; cabang: string | null; cabang_nama: string | null }[]> {
     if (ALLOW_MOCK) return Promise.resolve([]);
     return req("/api/units");
   },

@@ -12,10 +12,13 @@ import { rupiah } from "../lib/format";
 
 const F_AWAL = {
   nama_gelar: "", email: "", no_hp: "", posisi_diajukan: "", mapel: "",
-  unit_id: "", nip: "", nik_ktp: "", alamat: "", tempat_lahir: "", tgl_lahir: "",
+  cabang: "", unit_id: "", atasan_id: "", cabang_lainnya: "",
+  nip: "", nik_ktp: "", alamat: "", tempat_lahir: "", tgl_lahir: "",
   status_kawin: "", transport: "", gaji_diajukan: "", bank_utama: "BSI",
   norek_utama: "", bank_lain: "", norek_lain: "",
 };
+
+interface UnitOpt { id: number; nama: string; kode: string; cabang: string | null; cabang_nama: string | null }
 
 export function KaryawanList() {
   const nav = useNavigate();
@@ -24,10 +27,12 @@ export function KaryawanList() {
   const [me, setMe] = useState<SessionUser | null>(null);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [units, setUnits] = useState<{ id: number; nama: string; kode: string }[]>([]);
+  const [units, setUnits] = useState<UnitOpt[]>([]);
   const [f, setF] = useState(F_AWAL);
   const [saving, setSaving] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [dragAktif, setDragAktif] = useState(false);
+  const [namaBerkas, setNamaBerkas] = useState<string | null>(null);
   const [arsipNama, setArsipNama] = useState<string | null>(null);
   const [cvLink, setCvLink] = useState<string | null>(null);
   const [pend, setPend] = useState({ pt: "", prodi: "", ipk: "" });
@@ -55,22 +60,73 @@ export function KaryawanList() {
     })?.id;
   };
 
+  const cabangDariDaftar = (daftar: UnitOpt[]) => {
+    const peta = new Map<string, string>();
+    for (const u of daftar) {
+      if (u.cabang && !peta.has(u.cabang)) peta.set(u.cabang, u.cabang_nama || u.cabang);
+    }
+    return [...peta.entries()].map(([kode, nama]) => ({ kode, nama }));
+  };
+
+  const cocokCabangDi = (daftar: UnitOpt[], nama: string) => {
+    const n = nama.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return cabangDariDaftar(daftar).find((c) => {
+      const k = c.kode.toLowerCase();
+      const m = c.nama.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return m === n || m.includes(n) || n.includes(m) || n.includes(k);
+    })?.kode;
+  };
+
+  // Daftar cabang unik dari units (kode + nama). LAINNYA selalu terakhir.
+  const daftarCabang = useMemo(() => {
+    const semua = cabangDariDaftar(units);
+    return semua.sort((a, b) => (a.kode === "LAIN" ? 1 : b.kode === "LAIN" ? -1 : a.kode.localeCompare(b.kode)));
+  }, [units]);
+
+  const unitsCabang = useMemo(
+    () => (f.cabang ? units.filter((u) => u.cabang === f.cabang) : []),
+    [units, f.cabang]
+  );
+
+  // Calon atasan = karyawan yang sudah ada di cabang yang sama.
+  const atasanCabang = useMemo(() => {
+    if (!data || !f.cabang) return [];
+    return data.filter((e) => e.cabang === f.cabang);
+  }, [data, f.cabang]);
+
+  const pilihCabang = (kode: string) => {
+    setF((s) => ({ ...s, cabang: kode, unit_id: "", atasan_id: "", cabang_lainnya: "" }));
+  };
+
   const uploadPDF = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast("File harus PDF template Arsip SDM");
+      return;
+    }
     setParsing(true);
+    setNamaBerkas(file.name);
     try {
       const r = await api.parseSDM(file);
       const d = r.data as Record<string, string | number | null>;
       const daftar = units.length ? units : await api.units().catch(() => []);
       if (!units.length && daftar.length) setUnits(daftar);
-      const uid = d.unit_nama ? cocokUnit(String(d.unit_nama), daftar) : undefined;
+      // Samakan cabang dulu (dari hasil parse), lalu unit di dalam cabang itu.
+      let cabangKode = f.cabang;
+      if (d.cabang_nama) {
+        const ketemu = cocokCabangDi(daftar, String(d.cabang_nama));
+        if (ketemu) cabangKode = ketemu;
+      }
+      const unitTersedia = cabangKode ? daftar.filter((u) => u.cabang === cabangKode) : daftar;
+      const uid = d.unit_nama ? cocokUnit(String(d.unit_nama), unitTersedia) : undefined;
       setF({
         ...F_AWAL,
+        cabang: cabangKode,
+        unit_id: uid ? String(uid) : "",
         nama_gelar: String(d.nama_gelar ?? ""),
         email: String(d.email ?? ""),
         no_hp: String(d.no_hp ?? ""),
         posisi_diajukan: String(d.posisi_diajukan ?? ""),
         mapel: String(d.mapel ?? ""),
-        unit_id: uid ? String(uid) : "",
         nik_ktp: String(d.nik_ktp ?? ""),
         alamat: String(d.alamat ?? ""),
         tempat_lahir: String(d.tempat_lahir ?? ""),
@@ -105,8 +161,12 @@ export function KaryawanList() {
 
   const simpan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!f.nama_gelar.trim() || !f.unit_id) {
-      toast("Nama dan unit wajib diisi");
+    if (!f.nama_gelar.trim() || !f.cabang || !f.unit_id) {
+      toast("Nama, cabang, dan unit wajib diisi");
+      return;
+    }
+    if (f.cabang === "LAIN" && !f.cabang_lainnya.trim()) {
+      toast("Cabang LAINNYA wajib diisi keterangannya");
       return;
     }
     setSaving(true);
@@ -120,6 +180,8 @@ export function KaryawanList() {
       const r = await api.createEmployee({
         nama_gelar: f.nama_gelar.trim(),
         unit_id: Number(f.unit_id),
+        atasan_id: f.atasan_id ? Number(f.atasan_id) : null,
+        cabang_lainnya: f.cabang === "LAIN" ? f.cabang_lainnya.trim() || undefined : undefined,
         email: f.email.trim() || undefined,
         no_hp: f.no_hp.trim() || undefined,
         posisi_diajukan: f.posisi_diajukan.trim() || undefined,
@@ -151,6 +213,7 @@ export function KaryawanList() {
       setArsipNama(null);
       setCvLink(null);
       setPeringatan([]);
+      setNamaBerkas(null);
       nav(`/karyawan/${r.nip}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menambah karyawan");
@@ -181,16 +244,36 @@ export function KaryawanList() {
 
       {showForm && bolehTambah ? (
         <Card className="wd-card border-primary/40">
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <CardHeader className="border-b border-border pb-4">
             <CardTitle className="text-base">Tambah karyawan baru</CardTitle>
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
-                onChange={(e) => { const fl = e.target.files?.[0]; if (fl) uploadPDF(fl); }}
-              />
-              <Button type="button" variant="outline" size="sm" disabled={parsing} onClick={() => fileRef.current?.click()}>
-                {parsing ? "Membaca PDF…" : "Upload PDF SDM"}
-              </Button>
+            <input
+              ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
+              onChange={(e) => { const fl = e.target.files?.[0]; if (fl) uploadPDF(fl); }}
+            />
+            <div
+              role="button" tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileRef.current?.click(); }}
+              onDragOver={(e) => { e.preventDefault(); setDragAktif(true); }}
+              onDragLeave={() => setDragAktif(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragAktif(false);
+                const fl = e.dataTransfer.files?.[0];
+                if (fl) uploadPDF(fl);
+              }}
+              className={`mt-3 flex cursor-pointer items-center justify-center gap-3 rounded-md border-2 border-dashed px-4 py-5 text-center text-sm transition-colors ${
+                dragAktif ? "border-primary bg-secondary" : "border-input bg-muted/40 hover:border-primary/60 hover:bg-muted/70"
+              }`}
+            >
+              <div>
+                <p className="font-semibold text-foreground">
+                  {parsing ? "Membaca PDF…" : "Seret PDF Arsip SDM ke sini, atau klik untuk pilih file"}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {namaBerkas ? `Berkas: ${namaBerkas}` : "Template PDF SDM — form terisi otomatis, verifikasi sebelum simpan"}
+                </p>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -204,14 +287,35 @@ export function KaryawanList() {
               <Field label="Nama lengkap + gelar *">
                 <Input value={f.nama_gelar} onChange={(e) => setF({ ...f, nama_gelar: e.target.value })} placeholder="cth. Ahmad Hidayat, S.Pd." required />
               </Field>
+              <Field label="Cabang *">
+                <Select value={f.cabang} onChange={(e) => pilihCabang(e.target.value)} required>
+                  <option value="">— Pilih cabang —</option>
+                  {daftarCabang.map((c) => (
+                    <option key={c.kode} value={c.kode}>{c.nama}</option>
+                  ))}
+                </Select>
+              </Field>
               <Field label="Unit *">
-                <Select value={f.unit_id} onChange={(e) => setF({ ...f, unit_id: e.target.value })} required>
-                  <option value="">— Pilih unit —</option>
-                  {units.map((u) => (
+                <Select value={f.unit_id} onChange={(e) => setF({ ...f, unit_id: e.target.value })} required disabled={!f.cabang}>
+                  <option value="">{f.cabang ? "— Pilih unit —" : "— Pilih cabang dulu —"}</option>
+                  {unitsCabang.map((u) => (
                     <option key={u.id} value={u.id}>{u.nama} ({u.kode})</option>
                   ))}
                 </Select>
               </Field>
+              <Field label="Atasan langsung (cabang yang sama)">
+                <Select value={f.atasan_id} onChange={(e) => setF({ ...f, atasan_id: e.target.value })} disabled={!f.cabang}>
+                  <option value="">{atasanCabang.length ? "— Tidak ada / pilih atasan —" : "— Belum ada data atasan di cabang ini —"}</option>
+                  {atasanCabang.map((k) => (
+                    <option key={k.id} value={k.id}>{k.nama_gelar}{k.posisi_diajukan ? ` · ${k.posisi_diajukan}` : ""}</option>
+                  ))}
+                </Select>
+              </Field>
+              {f.cabang === "LAIN" ? (
+                <Field label="Keterangan cabang (LAINNYA) *">
+                  <Input value={f.cabang_lainnya} onChange={(e) => setF({ ...f, cabang_lainnya: e.target.value })} placeholder="cth. AL-WILDAN 33 …" required />
+                </Field>
+              ) : null}
               <Field label="Posisi diajukan">
                 <Input value={f.posisi_diajukan} onChange={(e) => setF({ ...f, posisi_diajukan: e.target.value })} placeholder="cth. Guru Mata Pelajaran" />
               </Field>

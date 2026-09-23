@@ -283,7 +283,9 @@ export function KaryawanDetail() {
                     <Field label="Atasan langsung">
                       <Select value={kerja.atasan_id} onChange={(e) => setKerja({ ...kerja, atasan_id: e.target.value })}>
                         <option value="">— tidak ada —</option>
-                        {semuaKary.map((k) => <option key={k.id} value={k.id}>{k.nama_gelar}</option>)}
+                        {(emp.cabang ? semuaKary.filter((k) => k.cabang === emp.cabang) : semuaKary).map((k) => (
+                          <option key={k.id} value={k.id}>{k.nama_gelar}{k.posisi_diajukan ? ` · ${k.posisi_diajukan}` : ""}</option>
+                        ))}
                       </Select>
                     </Field>
                     <Field label="Tgl masuk"><Input type="date" value={kerja.tgl_masuk} onChange={(e) => setKerja({ ...kerja, tgl_masuk: e.target.value })} /></Field>

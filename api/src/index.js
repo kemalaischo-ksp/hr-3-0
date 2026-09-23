@@ -384,7 +384,7 @@ app.get("/api/permission-catalog", auth, requirePerm("users.kelola"), (c) =>
 // UNIT + CABANG — untuk form penempatan pengguna (hanya users.kelola)
 app.get("/api/units", auth, requirePerm("users.kelola"), async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT un.id, un.nama, un.kode, cb.kode AS cabang FROM units un LEFT JOIN cabangs cb ON cb.id = un.cabang_id ORDER BY un.nama"
+    "SELECT un.id, un.nama, un.kode, cb.kode AS cabang, cb.nama AS cabang_nama FROM units un LEFT JOIN cabangs cb ON cb.id = un.cabang_id ORDER BY un.nama"
   ).all();
   return c.json(results);
 });
@@ -464,8 +464,9 @@ app.get("/api/employees", auth, requirePerm("karyawan.lihat", "slip.lihat"), asy
              e.thp_kotor, e.konfirmasi, e.thp_bersih, e.total_tk_thr, e.tk, e.thr_bulan,
              e.tmt_aktif, e.mode_thp, e.status_aktivasi, e.cv_url,
              e.status_kerja, e.tgl_masuk, e.atasan_id, e.foto_url, e.kontak_darurat,
+             cb.kode AS cabang,
              atasan.nama_gelar AS atasan_nama
-           FROM employees e JOIN units un ON un.id = e.unit_id LEFT JOIN employees atasan ON atasan.id = e.atasan_id`;
+           FROM employees e JOIN units un ON un.id = e.unit_id LEFT JOIN employees atasan ON atasan.id = e.atasan_id LEFT JOIN cabangs cb ON cb.id = COALESCE(e.cabang_id, un.cabang_id)`;
   const args = [];
   if (u.role === "hr_cabang") {
     const cab = await userCabangId(c.env.DB, u);
@@ -553,6 +554,21 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
     return c.json({ error: e.message }, 400);
   }
   const bank = (v) => (v ? String(v).trim().slice(0, 30) : null);
+  // Atasan langsung opsional (dipilih dari dropdown per cabang di form).
+  const atasan_id = b.atasan_id == null || b.atasan_id === "" ? null : Number(b.atasan_id);
+  if (atasan_id != null && !(atasan_id > 0))
+    return c.json({ error: "Atasan tidak dikenal" }, 400);
+  if (atasan_id != null) {
+    const at = await c.env.DB.prepare("SELECT id FROM employees WHERE id = ?").bind(atasan_id).first();
+    if (!at) return c.json({ error: "Atasan tidak ditemukan" }, 400);
+  }
+  // Keterangan cabang bebas — hanya disimpan bila unit dari cabang LAINNYA.
+  let cabang_lainnya = null;
+  if (unit.cabang_id != null) {
+    const cb = await c.env.DB.prepare("SELECT kode FROM cabangs WHERE id = ?").bind(unit.cabang_id).first();
+    if (cb?.kode === "LAIN" && typeof b.cabang_lainnya === "string" && b.cabang_lainnya.trim())
+      cabang_lainnya = b.cabang_lainnya.trim().slice(0, 120);
+  }
   try {
     if (!nip) {
       const tahun = String(new Date().getFullYear()).slice(2);
@@ -562,13 +578,16 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
     const ins = await c.env.DB.prepare(
       `INSERT INTO employees (unit_id, cabang_id, nip, nama, nama_gelar, email, no_hp, posisi_diajukan, mapel,
         nik_ktp, alamat, tempat_lahir, tgl_lahir, status_kawin, tinggi_cm, berat_kg, transport,
-        gaji_diajukan, bank_utama, norek_utama, bank_lain, norek_lain, status_aktivasi)
-       VALUES (?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?, 'draft') RETURNING id, nip`
+        gaji_diajukan, bank_utama, norek_utama, bank_lain, norek_lain, status_aktivasi,
+        atasan_id, cabang_lainnya)
+       VALUES (?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?, 'draft',
+        ?, ?) RETURNING id, nip`
     ).bind(unit_id, unit.cabang_id ?? null, nip, nama, nama,
       email || null, no_hp || null, b.posisi_diajukan || null, b.mapel || null,
       nik || null, b.alamat || null, b.tempat_lahir || null, tgl_lahir || null, kawin || null,
       tinggi, berat, b.transport || null,
-      gaji, bank(b.bank_utama), norek_utama || null, bank(b.bank_lain), norek_lain || null).first();
+      gaji, bank(b.bank_utama), norek_utama || null, bank(b.bank_lain), norek_lain || null,
+      atasan_id, cabang_lainnya).first();
     // CV: link eksplisit diutamakan; arsip upload (0-*.pdf) di-rename ke ID baru.
     let cv_url = null;
     if (typeof b.cv_url === "string" && /^https?:\/\/.{5,500}$/.test(b.cv_url.trim())) cv_url = b.cv_url.trim();
