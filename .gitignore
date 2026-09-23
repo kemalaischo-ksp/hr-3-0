@@ -1,0 +1,15 @@
+# Root HR 3.0 — jangan commit secret & artefak lokal
+.env
+.env.prod
+.env.local
+*.log
+.DS_Store
+node_modules/
+dist/
+build/
+backup/
+data/
+api/data/
+api/backup/
+# Postgres runtime (docker volume bind)
+data/pg/
