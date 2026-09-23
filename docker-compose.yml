@@ -1,0 +1,42 @@
+# HRIS AL-WILDAN 3.0 pilot AW3 — PostgreSQL khusus + API (serve frontend juga).
+# Pakai: cp .env.prod.example .env && docker compose up -d --build
+services:
+  hr30-db:
+    image: postgres:16
+    container_name: hr30-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=hr30_aw3
+      - POSTGRES_USER=hr30
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    healthcheck:      test: ["CMD-SHELL", "pg_isready -U hr30 -d hr30_aw3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hr30:
+    build: .
+    container_name: hr30
+    restart: unless-stopped
+    volumes:
+      - ./data/arsip:/app/data/arsip
+    depends_on:
+      hr30-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgres://hr30:${DB_PASSWORD}@hr30-db:5432/hr30_aw3
+      - AUTH_SECRET=${AUTH_SECRET}
+      - COOKIE_SECURE=1
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL:-}
+      - NEXTCLOUD_USER=${NEXTCLOUD_USER:-}
+      - NEXTCLOUD_PASS=${NEXTCLOUD_PASS:-}
+      - NEXTCLOUD_GROUPFOLDER=${NEXTCLOUD_GROUPFOLDER:-Arsip SDM}
+      - AI_API_URL=${AI_API_URL:-}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-}
