@@ -19,7 +19,7 @@ try {
   const files = [];
   if (!cek.rows[0].t) files.push(`${DIR}/base/00_schema_dasar.sql`, `${DIR}/base/01_seed_dasar.sql`);
   else console.log("Skema dasar sudah ada — lewati baseline.");
-  files.push(`${DIR}/migrations/001_hr30_pilot_aw3.sql`, `${DIR}/migrations/002_nip_sequence.sql`, `${DIR}/migrations/003_user_permissions.sql`, `${DIR}/migrations/004_modul_lanjutan.sql`, `${DIR}/migrations/005_koreksi_presensi.sql`, `${DIR}/migrations/006_gateway_undangan.sql`, `${DIR}/migrations/007_password_reset.sql`, `${DIR}/migrations/008_cabang_list.sql`, `${DIR}/migrations/009_units_per_cabang.sql`, `${DIR}/migrations/010_seed_atasan.sql`);
+  files.push(`${DIR}/migrations/001_hr30_pilot_aw3.sql`, `${DIR}/migrations/002_nip_sequence.sql`, `${DIR}/migrations/003_user_permissions.sql`, `${DIR}/migrations/004_modul_lanjutan.sql`, `${DIR}/migrations/005_koreksi_presensi.sql`, `${DIR}/migrations/006_gateway_undangan.sql`, `${DIR}/migrations/007_password_reset.sql`, `${DIR}/migrations/008_cabang_list.sql`, `${DIR}/migrations/009_units_per_cabang.sql`, `${DIR}/migrations/010_seed_atasan.sql`, `${DIR}/migrations/011_enrichment_sdm.sql`);
   if (withSeed) files.push(`${DIR}/seeds/aw3_pilot.sql`);
   for (const f of files) {
     console.log("Terapkan", f);
