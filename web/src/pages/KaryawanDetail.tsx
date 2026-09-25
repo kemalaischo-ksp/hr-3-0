@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Field, Input, Select } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { api, bisa, cekBalance, type Dokumen, type Employee, type OnboardingItem, type RiwayatJabatan, type SessionUser } from "../lib/api";
+import { api, bisa, cekBalance, type Dokumen, type Employee, type OnboardingItem, type Pendidikan, type Pengalaman, type RiwayatJabatan, type SessionUser } from "../lib/api";
 import { masaKerja, rupiah, tglISOtoID } from "../lib/format";
 import { toast } from "../components/ui/toaster";
 import { isArsipUrl, useArsip } from "../lib/unduh";
@@ -26,6 +26,8 @@ export function KaryawanDetail() {
   const [riwayat, setRiwayat] = useState<RiwayatJabatan[] | null>(null);
   const [dokumen, setDokumen] = useState<Dokumen[] | null>(null);
   const [onboard, setOnboard] = useState<OnboardingItem[] | null>(null);
+  const [pendidikan, setPendidikan] = useState<Pendidikan[] | null>(null);
+  const [pengalaman, setPengalaman] = useState<Pengalaman[] | null>(null);
   const [kerja, setKerja] = useState({ atasan_id: "", tgl_masuk: "", status_kerja: "aktif", kontak_darurat: "", foto_url: "" });
   const [rj, setRj] = useState({ tanggal: "", jabatan_baru: "", gaji_baru: "", keterangan: "", terapkan: true });
   const [dok, setDok] = useState({ jenis: "KTP", judul: "", file_key: "", kedaluwarsa: "" });
@@ -38,6 +40,8 @@ export function KaryawanDetail() {
     api.riwayatJabatan(id).then(setRiwayat).catch(() => setRiwayat([]));
     api.dokumen(id).then(setDokumen).catch(() => setDokumen([]));
     api.onboarding(id).then(setOnboard).catch(() => setOnboard([]));
+    api.pendidikan(id).then(setPendidikan).catch(() => setPendidikan([]));
+    api.pengalaman(id).then(setPengalaman).catch(() => setPengalaman([]));
   };
 
   useEffect(() => {
@@ -179,6 +183,7 @@ export function KaryawanDetail() {
       <Tabs defaultValue="biodata">
         <TabsList>
           <TabsTrigger value="biodata">Biodata</TabsTrigger>
+          <TabsTrigger value="pendidikan">Pendidikan & Pengalaman</TabsTrigger>
           <TabsTrigger value="aktivasi">Aktivasi THP</TabsTrigger>
           <TabsTrigger value="workflow">Workflow</TabsTrigger>
           {lihat ? <TabsTrigger value="kerja">Data kerja</TabsTrigger> : null}
@@ -193,6 +198,7 @@ export function KaryawanDetail() {
             <CardContent>
               <dl className="grid gap-x-8 gap-y-3 text-sm md:grid-cols-2">
                 {[
+                  ["Jabatan", emp.jabatan ?? "–"], ["Gender", emp.gender ?? "–"],
                   ["Email", emp.email], ["No HP", emp.no_hp], ["Posisi", emp.posisi_diajukan],
                   ["Mapel", emp.mapel ?? "–"], ["Unit", `${emp.unit} · AW3`], ["Gaji diajukan", rupiah(emp.gaji_diajukan)],
                   ["TMT aktif", tglISOtoID(emp.tmt_aktif)], ["Mode THP", emp.mode_thp ?? "–"],
@@ -206,6 +212,86 @@ export function KaryawanDetail() {
                 ))}
               </dl>
               <p className="mt-4 text-xs text-muted-foreground">NIK KTP disembunyikan (sensitif — tidak tampil di UI).</p>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-5">
+            <CardHeader><CardTitle className="text-base">Domisili & data pribadi</CardTitle></CardHeader>
+            <CardContent>
+              <dl className="grid gap-x-8 gap-y-3 text-sm md:grid-cols-2">
+                {[
+                  ["Alamat", emp.alamat ?? "–"],
+                  ["Tempat, tgl lahir", `${emp.tempat_lahir ?? "–"}, ${emp.tgl_lahir ? tglISOtoID(emp.tgl_lahir) : "–"}`],
+                  ["Status", emp.status_kawin ?? "–"], ["Transport", emp.transport ?? "–"],
+                  ["Tinggi badan", emp.tinggi_cm ? `${emp.tinggi_cm} cm` : "–"],
+                  ["Berat badan", emp.berat_kg ? `${emp.berat_kg} kg` : "–"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="text-right font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              {emp.kesehatan_url ? (
+                <p className="mt-4 text-xs">
+                  <a href={emp.kesehatan_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">Lihat riwayat kesehatan →</a>
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-5">
+            <CardHeader><CardTitle className="text-base">Rekening bank</CardTitle></CardHeader>
+            <CardContent>
+              <dl className="grid gap-x-8 gap-y-3 text-sm md:grid-cols-2">
+                {[
+                  ["Bank utama", emp.bank_utama ?? "–"], ["No. rekening utama", emp.norek_utama ?? "–"],
+                  ["Bank lain", emp.bank_lain ?? "–"], ["No. rekening lain", emp.norek_lain ?? "–"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="text-right font-medium tnum">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pendidikan">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Riwayat pendidikan</CardTitle></CardHeader>
+            <CardContent>
+              {!pendidikan ? <p className="text-sm text-muted-foreground">Memuat…</p> : pendidikan.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Belum ada data pendidikan.</p>
+              ) : (
+                <ol className="grid gap-2">
+                  {pendidikan.map((p) => (
+                    <li key={p.id} className="rounded-md border border-border px-4 py-3 text-sm">
+                      <p className="font-medium">{p.jenjang}{p.perguruan_tinggi ? ` · ${p.perguruan_tinggi}` : ""}</p>
+                      {p.prodi ? <p className="text-xs text-muted-foreground">{p.prodi}</p> : null}
+                      {p.ipk != null ? <p className="tnum text-xs text-muted-foreground">IPK {p.ipk}</p> : null}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="mt-5">
+            <CardHeader><CardTitle className="text-base">Pengalaman kerja sebelumnya</CardTitle></CardHeader>
+            <CardContent>
+              {!pengalaman ? <p className="text-sm text-muted-foreground">Memuat…</p> : pengalaman.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Belum ada data pengalaman kerja.</p>
+              ) : (
+                <ol className="grid gap-2">
+                  {pengalaman.map((p) => (
+                    <li key={p.id} className="rounded-md border border-border px-4 py-3 text-sm">
+                      <p className="font-medium">{p.deskripsi ?? "–"}</p>
+                      {p.salary != null ? <p className="tnum text-xs text-muted-foreground">Gaji: {rupiah(p.salary)}</p> : null}
+                    </li>
+                  ))}
+                </ol>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
