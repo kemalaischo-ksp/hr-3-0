@@ -14,7 +14,7 @@ const F_AWAL = {
   nama_gelar: "", email: "", no_hp: "", posisi_diajukan: "", mapel: "",
   cabang: "", unit_id: "", atasan_id: "", cabang_lainnya: "",
   nip: "", nik_ktp: "", alamat: "", tempat_lahir: "", tgl_lahir: "",
-  status_kawin: "", transport: "", gaji_diajukan: "", bank_utama: "BSI",
+  status_kawin: "", gender: "", transport: "", gaji_diajukan: "", bank_utama: "BSI",
   norek_utama: "", bank_lain: "", norek_lain: "",
 };
 
@@ -46,6 +46,9 @@ export function KaryawanList() {
   }, []); // eslint-disable-line
 
   const bolehTambah = bisa(me, "karyawan.tambah");
+  const bolehAkun = bisa(me, "users.kelola");
+  const [akunEmp, setAkunEmp] = useState<Employee | null>(null);
+  const [fCabang, setFCabang] = useState("");
 
   const bukaForm = () => {
     api.units().then(setUnits).catch(() => setUnits([]));
@@ -96,6 +99,17 @@ export function KaryawanList() {
 
   const pilihCabang = (kode: string) => {
     setF((s) => ({ ...s, cabang: kode, unit_id: "", atasan_id: "", cabang_lainnya: "" }));
+  };
+
+  const hapusKaryawan = async (e: Employee) => {
+    if (!window.confirm(`Hapus permanen ${e.nama_gelar} (NIP ${e.nip})?\nRiwayat absensi/cuti/pengajuan ikut terhapus. Akun loginnya juga dihapus.`)) return;
+    try {
+      const r = await api.hapusKaryawan(e.id);
+      toast(`Karyawan ${r.nip} dihapus.`);
+      muat();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Gagal menghapus");
+    }
   };
 
   const uploadPDF = async (file: File) => {
@@ -192,6 +206,7 @@ export function KaryawanList() {
         tempat_lahir: f.tempat_lahir.trim() || undefined,
         tgl_lahir: f.tgl_lahir.trim() || undefined,
         status_kawin: f.status_kawin || undefined,
+        gender: f.gender || undefined,
         transport: f.transport.trim() || undefined,
         gaji_diajukan: num(f.gaji_diajukan),
         bank_utama: f.bank_utama.trim() || undefined,
@@ -225,9 +240,23 @@ export function KaryawanList() {
   const rows = useMemo(() => {
     if (!data) return [];
     const s = q.trim().toLowerCase();
-    if (!s) return data;
-    return data.filter((e) => `${e.nama_gelar} ${e.nip} ${e.posisi_diajukan}`.toLowerCase().includes(s));
-  }, [data, q]);
+    const cab = fCabang;
+    return data.filter((e) => {
+      if (cab && e.cabang !== cab) return false;
+      if (!s) return true;
+      return `${e.nama_gelar} ${e.nip} ${e.posisi_diajukan}`.toLowerCase().includes(s);
+    });
+  }, [data, q, fCabang]);
+
+  // Daftar cabang untuk filter (dari data karyawan, bukan units — selalu tersedia).
+  const cabangFilter = useMemo(() => {
+    if (!data) return [];
+    const peta = new Map<string, number>();
+    for (const e of data) if (e.cabang) peta.set(e.cabang, (peta.get(e.cabang) ?? 0) + 1);
+    return [...peta.entries()]
+      .map(([kode, jumlah]) => ({ kode, jumlah }))
+      .sort((a, b) => (a.kode === "LAIN" ? 1 : b.kode === "LAIN" ? -1 : a.kode.localeCompare(b.kode)));
+  }, [data]);
 
   return (
     <div className="grid gap-5">
@@ -236,10 +265,17 @@ export function KaryawanList() {
           <p className="text-xs text-muted-foreground">HRIS · <b className="text-foreground">Daftar karyawan</b></p>
           <h1 className="font-display text-2xl font-bold">Karyawan AW3</h1>
         </div>
+        <Select value={fCabang} onChange={(e) => setFCabang(e.target.value)} className="max-w-[240px]">
+          <option value="">— Semua cabang —</option>
+          {cabangFilter.map((c) => (
+            <option key={c.kode} value={c.kode}>{c.kode} · {c.jumlah} karyawan</option>
+          ))}
+        </Select>
         <Input placeholder="Cari nama / NIP / posisi…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         {bolehTambah ? (
           <Button variant="secondary" onClick={bukaForm}>+ Tambah karyawan</Button>
         ) : null}
+        {bolehAkun ? <BulkAkunPanel scopeCabang={fCabang || null} muat={muat} /> : null}
       </div>
 
       {showForm && bolehTambah ? (
@@ -346,6 +382,12 @@ export function KaryawanList() {
                   {["Lajang", "Menikah", "Janda", "Duda"].map((s) => <option key={s} value={s}>{s}</option>)}
                 </Select>
               </Field>
+              <Field label="Gender">
+                <Select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}>
+                  <option value="">—</option>
+                  {["Pria", "Perempuan"].map((s) => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              </Field>
               <Field label="Transport">
                 <Input value={f.transport} onChange={(e) => setF({ ...f, transport: e.target.value })} />
               </Field>
@@ -413,6 +455,8 @@ export function KaryawanList() {
                   <TableHead>Posisi</TableHead>
                   <TableHead>THP bersih</TableHead>
                   <TableHead>Status</TableHead>
+                  {bolehAkun ? <TableHead>Akun</TableHead> : null}
+                  {bolehTambah ? <TableHead /> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -428,6 +472,20 @@ export function KaryawanList() {
                     <TableCell>{e.posisi_diajukan}{e.mapel ? ` · ${e.mapel}` : ""}</TableCell>
                     <TableCell className="tnum">{rupiah(e.thp_bersih)}</TableCell>
                     <TableCell><Badge variant={STATUS_BADGE[e.status_aktivasi]}>{STATUS_LABEL[e.status_aktivasi]}</Badge></TableCell>
+                    {bolehAkun ? (
+                      <TableCell>
+                        {e.punya_akun ? (
+                          <Badge variant="success">Ada</Badge>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => setAkunEmp(e)}>Buatkan</Button>
+                        )}
+                      </TableCell>
+                    ) : null}
+                    {bolehTambah ? (
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => hapusKaryawan(e)}>Hapus</Button>
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))}
               </TableBody>
@@ -435,6 +493,267 @@ export function KaryawanList() {
           )}
         </CardContent>
       </Card>
+      {akunEmp && bolehAkun ? (
+        <BuatkanAkunDialog
+          emp={akunEmp}
+          tutup={() => setAkunEmp(null)}
+          selesai={() => { setAkunEmp(null); muat(); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function acakSandi(n = 12) {
+  const abjad = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const b = crypto.getRandomValues(new Uint8Array(n));
+  return [...b].map((x) => abjad[x % abjad.length]).join("");
+}
+
+function unduhCSV(judul: string, baris: Record<string, string>[]) {
+  const cols = baris.length ? Object.keys(baris[0]) : [];
+  const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...baris.map((r) => cols.map((c) => esc(r[c] ?? "")).join(","))].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${judul}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+type BarisKredensial = { nip?: string; nama: string; email: string; sandi: string };
+type BarisDilewati = { nip?: string; nama: string; alasan: string };
+
+function BulkAkunPanel({ scopeCabang, muat }: { scopeCabang: string | null; muat: () => void }) {
+  const [mode, setMode] = useState<"akun" | "reset" | null>(null);
+  const [role, setRole] = useState("pegawai");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [hasil, setHasil] = useState<{ mode: string; dibuat: BarisKredensial[] | null; direset: BarisKredensial[] | null; dilewati: BarisDilewati[] } | null>(null);
+
+  const scopeLabel = scopeCabang ? `cabang ${scopeCabang}` : "semua cabang";
+
+  const jalankan = async (m: "akun" | "reset") => {
+    let konfirmasi = "";
+    if (m === "akun")
+      konfirmasi = `Buatkan akun untuk SEMUA karyawan ${scopeLabel} yang belum punya akun dan punya email?\nKredensial (email+sandi) akan ditampilkan SEPERTI BERIKUT hanya sekali — wajib segera disimpan/dicetak.`;
+    else
+      konfirmasi = `Acak ulang sandi SEMUA akun ${scopeLabel} yang sudah tertaut karyawan?\nKredensial baru ditampilkan SEKALI saja.`;
+    if (!window.confirm(konfirmasi)) return;
+    setMode(m);
+    setBusy(true);
+    setErr(null);
+    setHasil(null);
+    try {
+      if (m === "akun") {
+        const r = await api.bulkAkun({ role, password: password || undefined, cabang: scopeCabang ?? undefined });
+        setHasil({ mode: "akun", dibuat: r.dibuat, direset: null, dilewati: r.dilewati });
+        toast(`Akun dibuat untuk ${r.dibuat.length} karyawan (${r.dilewati.length} dilewati).`);
+      } else {
+        const r = await api.bulkReset({ cabang: scopeCabang ?? undefined });
+        setHasil({ mode: "reset", dibuat: null, direset: r.direset, dilewati: [] });
+        toast(`Sandi direset untuk ${r.direset.length} akun.`);
+      }
+      muat();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Gagal");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const kredensial = hasil?.mode === "akun" ? hasil.dibuat : hasil?.direset;
+  const tutupHasil = () => { setHasil(null); setMode(null); };
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => { setMode("akun"); setHasil(null); setErr(null); }}>
+        ⚡ Buatkan akun semua
+      </Button>
+      <Button variant="outline" onClick={() => { setMode("reset"); setHasil(null); setErr(null); }}>
+        ⟳ Reset semua sandi
+      </Button>
+
+      {mode && !hasil ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-navy/60 p-4" onClick={() => setMode(null)}>
+          <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-lg font-bold">
+              {mode === "akun" ? "Buatkan akun semua" : "Reset semua sandi"} · {scopeLabel}
+            </h2>
+            {mode === "akun" ? (
+              <div className="mt-4 grid gap-4">
+                <Field label="Peran default">
+                  <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                    <option value="pegawai">Pegawai</option>
+                    <option value="hr_cabang">HR Cabang</option>
+                  </Select>
+                </Field>
+                <Field label="Sandi seragam (kosong = acak per akun)">
+                  <div className="flex gap-2">
+                    <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="min. 8 karakter" minLength={password ? 8 : undefined} />
+                    <Button type="button" variant="outline" onClick={() => setPassword(acakSandi())}>Acak</Button>
+                  </div>
+                </Field>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Semua akun tertaut karyawan {scopeLabel} akan mendapat sandi baru acak. Master Admin dan akun Anda sendiri tidak ikut.
+              </p>
+            )}
+            {err ? <p className="mt-3 rounded-md bg-[#fbeae8] px-3 py-2 text-sm text-destructive">{err}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setMode(null)}>Batal</Button>
+              <Button onClick={() => jalankan(mode)} disabled={busy}>
+                {busy ? "Memproses…" : mode === "akun" ? "Buatkan akun" : "Reset sandi"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {hasil ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-navy/60 p-4" onClick={tutupHasil}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-lg font-bold">
+              {hasil.mode === "akun" ? `Akun dibuat: ${hasil.dibuat?.length ?? 0}` : `Sandi direset: ${hasil.direset?.length ?? 0}`}
+            </h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Kredensial hanya tampil sekali — <b>simpan CSV sekarang</b>. Lewat halaman ini, sandi tidak bisa dilihat lagi.
+            </p>
+            {kredensial && kredensial.length > 0 ? (
+              <>
+                <div className="mb-3 flex gap-2">
+                  <Button size="sm" onClick={() => {
+                    unduhCSV(hasil.mode === "akun" ? "akun-karyawan" : "reset-sandi", kredensial.map((k) => ({ nip: k.nip ?? "", nama: k.nama, email: k.email, sandi: k.sandi })));
+                  }}>
+                    Unduh CSV ({kredensial.length})
+                  </Button>
+                </div>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50 text-left text-muted-foreground">
+                        <th className="px-3 py-2">Nama</th><th className="px-3 py-2">Email</th><th className="px-3 py-2">Sandi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {kredensial.map((k) => (
+                        <tr key={k.email} className="border-b border-border/60 last:border-0">
+                          <td className="px-3 py-1.5 font-medium">{k.nama}</td>
+                          <td className="px-3 py-1.5 font-mono">{k.email}</td>
+                          <td className="px-3 py-1.5 font-mono text-primary">{k.sandi}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">Tidak ada yang diproses.</p>
+            )}
+            {hasil.dilewati.length > 0 ? (
+              <div className="mt-3 rounded-md bg-[#fff8ec] px-3 py-2 text-xs">
+                <p className="font-bold">Dilewati ({hasil.dilewati.length}):</p>
+                <ul className="ml-4 list-disc">
+                  {hasil.dilewati.slice(0, 10).map((d, i) => <li key={i}>{d.nama} — {d.alasan}</li>)}
+                </ul>
+                {hasil.dilewati.length > 10 ? <p>…dan {hasil.dilewati.length - 10} lainnya.</p> : null}
+              </div>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { unduhCSV(hasil.mode === "akun" ? "akun-karyawan" : "reset-sandi", (kredensial ?? []).map((k) => ({ nip: k.nip ?? "", nama: k.nama, email: k.email, sandi: k.sandi }))); }}>
+                Unduh CSV
+              </Button>
+              <Button onClick={tutupHasil}>Tutup</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function BuatkanAkunDialog({ emp, tutup, selesai }: { emp: Employee; tutup: () => void; selesai: () => void }) {
+  const [email, setEmail] = useState(emp.email || "");
+  const [role, setRole] = useState("pegawai");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [hasil, setHasil] = useState<{ email: string; role: string; sandi_sementara?: string } | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await api.buatkanAkun(emp.id, {
+        email: email.trim() || undefined,
+        password: password || undefined,
+        role,
+      });
+      setHasil({ email: r.email, role: r.role, sandi_sementara: r.sandi_sementara });
+      toast("Akun dibuat & tertaut ke karyawan.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Gagal membuat akun");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-navy/60 p-4" onClick={tutup}>
+      <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-display text-lg font-bold">Buatkan akun — {emp.nama_gelar}</h2>
+        <p className="mb-4 text-xs text-muted-foreground tnum">
+          NIP {emp.nip}{emp.posisi_diajukan ? ` · ${emp.posisi_diajukan}` : ""}. Kosongkan sandi untuk acak otomatis (ditampilkan sekali di sini).
+        </p>
+        {hasil ? (
+          <div className="grid gap-3">
+            <div className="rounded-md bg-[#e7f4ec] px-4 py-3 text-sm">
+              <p><b>Email:</b> <span className="font-mono">{hasil.email}</span></p>
+              <p><b>Peran:</b> {hasil.role}</p>
+              {hasil.sandi_sementara ? (
+                <p><b>Sandi sementara:</b> <span className="font-mono text-base font-bold">{hasil.sandi_sementara}</span></p>
+              ) : (
+                <p className="text-muted-foreground">Sandi sesuai yang Anda isi.</p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">Catat & teruskan ke karyawan — sandi acak hanya tampil sekali.</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={tutup}>Tutup</Button>
+              <Button onClick={selesai}>Selesai</Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="grid gap-4">
+            <Field label="Email login">
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@alwildan.sch.id" required />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Peran">
+                <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                  <option value="pegawai">Pegawai</option>
+                  <option value="hr_cabang">HR Cabang</option>
+                  <option value="master_admin">Master Admin</option>
+                </Select>
+              </Field>
+              <Field label="Sandi (kosong = acak)">
+                <div className="flex gap-2">
+                  <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="min. 8" minLength={password ? 8 : undefined} />
+                  <Button type="button" variant="outline" onClick={() => setPassword(acakSandi())} title="Acak sandi">Acak</Button>
+                </div>
+              </Field>
+            </div>
+            {err ? <p className="rounded-md bg-[#fbeae8] px-3 py-2 text-sm text-destructive">{err}</p> : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={tutup}>Batal</Button>
+              <Button type="submit" disabled={busy}>{busy ? "Membuat…" : "Buat akun"}</Button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

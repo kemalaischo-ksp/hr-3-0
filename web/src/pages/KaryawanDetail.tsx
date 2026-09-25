@@ -28,7 +28,7 @@ export function KaryawanDetail() {
   const [onboard, setOnboard] = useState<OnboardingItem[] | null>(null);
   const [pendidikan, setPendidikan] = useState<Pendidikan[] | null>(null);
   const [pengalaman, setPengalaman] = useState<Pengalaman[] | null>(null);
-  const [kerja, setKerja] = useState({ atasan_id: "", tgl_masuk: "", status_kerja: "aktif", kontak_darurat: "", foto_url: "" });
+  const [kerja, setKerja] = useState({ atasan_id: "", tgl_masuk: "", status_kerja: "aktif", kontak_darurat: "", foto_url: "", gender: "" });
   const [rj, setRj] = useState({ tanggal: "", jabatan_baru: "", gaji_baru: "", keterangan: "", terapkan: true });
   const [dok, setDok] = useState({ jenis: "KTP", judul: "", file_key: "", kedaluwarsa: "" });
   const fotoTampil = useArsip(kerja.foto_url || emp?.foto_url || null);
@@ -50,7 +50,7 @@ export function KaryawanDetail() {
       setEmp(e);
       if (e) {
         setForm({ thp_kotor: e.thp_kotor, thp_bersih: e.thp_bersih, total_tk_thr: e.total_tk_thr, tk: e.tk, thr_bulan: e.thr_bulan, konfirmasi: e.konfirmasi ?? "", tmt_aktif: e.tmt_aktif ?? "", mode_thp: e.mode_thp ?? "FULL" });
-        setKerja({ atasan_id: e.atasan_id ? String(e.atasan_id) : "", tgl_masuk: e.tgl_masuk ?? "", status_kerja: e.status_kerja ?? "aktif", kontak_darurat: e.kontak_darurat ?? "", foto_url: e.foto_url ?? "" });
+        setKerja({ atasan_id: e.atasan_id ? String(e.atasan_id) : "", tgl_masuk: e.tgl_masuk ?? "", status_kerja: e.status_kerja ?? "aktif", kontak_darurat: e.kontak_darurat ?? "", foto_url: e.foto_url ?? "", gender: e.gender ?? "" });
         setSemuaKary(all.filter((x) => x.id !== e.id));
         muatTab(e.id);
       }
@@ -95,6 +95,7 @@ export function KaryawanDetail() {
         status_kerja: kerja.status_kerja,
         kontak_darurat: kerja.kontak_darurat || null,
         foto_url: kerja.foto_url || null,
+        gender: kerja.gender || null,
       });
       toast("Data kerja tersimpan.");
     } catch (e) {
@@ -381,6 +382,12 @@ export function KaryawanDetail() {
                       </Select>
                     </Field>
                     <Field label="Kontak darurat"><Input value={kerja.kontak_darurat} onChange={(e) => setKerja({ ...kerja, kontak_darurat: e.target.value })} /></Field>
+                    <Field label="Gender">
+                      <Select value={kerja.gender} onChange={(e) => setKerja({ ...kerja, gender: e.target.value })}>
+                        <option value="">— belum diisi —</option>
+                        {["Pria", "Perempuan"].map((s) => <option key={s} value={s}>{s}</option>)}
+                      </Select>
+                    </Field>
                     <Field label="Foto (URL)"><Input value={kerja.foto_url} onChange={(e) => setKerja({ ...kerja, foto_url: e.target.value })} placeholder="https://…" /></Field>
                     <Field label="atau unggah foto (JPG/PNG ≤5 MB)">
                       <Input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) unggahBerkas(f, "foto"); e.target.value = ""; }} />
