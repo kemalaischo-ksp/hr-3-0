@@ -41,6 +41,7 @@ export interface Employee {
   atasan_id?: number | null;
   atasan_nama?: string | null;
   cabang?: string | null;
+  punya_akun?: boolean | number | null;
   foto_url?: string | null;
   kontak_darurat?: string | null;
 }
@@ -163,6 +164,16 @@ export interface RekapPresensi {
 }
 
 export interface CutiSaldo { employee_id: number; tahun: number; jatah: number; terpakai: number; sisa: number }
+
+export interface Statistik {
+  total: { total: number; aktif: number; pending: number; pria: number; perempuan: number; tanpa_gender: number; cabang: number };
+  per_cabang: { kode: string | null; nama: string; total: number; aktif: number; pending: number; pria: number; perempuan: number; tanpa_gender: number }[];
+  per_divisi: { unit: string; total: number; aktif: number; pending: number; pria: number; perempuan: number; tanpa_gender: number }[];
+  per_pendidikan: { S3: number; S2: number; S1: number; belum: number };
+  gender: { pria: number; perempuan: number; tanpa: number };
+}
+
+export interface AkunBaru { ok: boolean; id: string; email: string; role: string; sandi_sementara?: string }
 
 export interface RiwayatJabatan {
   id: number; employee_id: number; tanggal: string;
@@ -328,6 +339,7 @@ export const api = {
   createEmployee(body: {
     nama_gelar: string; unit_id: number; email?: string; no_hp?: string;
     posisi_diajukan?: string; mapel?: string; nip?: string;
+    gender?: string;
     atasan_id?: number | null; cabang_lainnya?: string;
     nik_ktp?: string; alamat?: string; tempat_lahir?: string; tgl_lahir?: string;
     status_kawin?: string; tinggi_cm?: number | null; berat_kg?: number | null;
@@ -486,9 +498,35 @@ export const api = {
     if (ALLOW_MOCK) return Promise.resolve({ ok: true });
     return req("/api/riwayat-jabatan", { method: "POST", body: JSON.stringify(body) });
   },
-  updateDataKerja(id: number, body: { atasan_id?: number | null; tgl_masuk?: string | null; status_kerja?: string; foto_url?: string | null; kontak_darurat?: string | null }): Promise<{ ok: boolean }> {
+  updateDataKerja(id: number, body: { atasan_id?: number | null; tgl_masuk?: string | null; status_kerja?: string; foto_url?: string | null; kontak_darurat?: string | null; gender?: string | null }): Promise<{ ok: boolean }> {
     if (ALLOW_MOCK) return Promise.resolve({ ok: true });
     return req(`/api/employees/${id}/data-kerja`, { method: "PATCH", body: JSON.stringify(body) });
+  },
+  statistik(): Promise<Statistik> {
+    if (ALLOW_MOCK) return Promise.resolve({
+      total: { total: 2, aktif: 1, pending: 1, pria: 1, perempuan: 0, tanpa_gender: 1, cabang: 1 },
+      per_cabang: [{ kode: "AW3", nama: "Al-Wildan 3 BSD City", total: 2, aktif: 1, pending: 1, pria: 1, perempuan: 0, tanpa_gender: 1 }],
+      per_divisi: [{ unit: "SMP-SMA", total: 2, aktif: 1, pending: 1, pria: 1, perempuan: 0, tanpa_gender: 1 }],
+      per_pendidikan: { S3: 0, S2: 0, S1: 2, belum: 0 },
+      gender: { pria: 1, perempuan: 0, tanpa: 1 },
+    });
+    return req("/api/statistik");
+  },
+  buatkanAkun(id: number, body: { email?: string; password?: string; role?: string }): Promise<AkunBaru> {
+    if (ALLOW_MOCK) throw new Error("Mode demo: buatkan akun butuh backend.");
+    return req(`/api/employees/${id}/buatkan-akun`, { method: "POST", body: JSON.stringify(body) });
+  },
+  hapusKaryawan(id: number): Promise<{ ok: boolean; nip: string }> {
+    if (ALLOW_MOCK) throw new Error("Mode demo: hapus butuh backend.");
+    return req(`/api/employees/${id}`, { method: "DELETE" });
+  },
+  bulkAkun(body: { role?: string; cabang?: string; password?: string }): Promise<{ ok: boolean; dibuat: { nip: string; nama: string; email: string; sandi: string }[]; dilewati: { nip: string; nama: string; alasan: string }[] }> {
+    if (ALLOW_MOCK) throw new Error("Mode demo: bulk akun butuh backend.");
+    return req("/api/employees/bulk-akun", { method: "POST", body: JSON.stringify(body) });
+  },
+  bulkReset(body: { cabang?: string }): Promise<{ ok: boolean; direset: { nip: string; nama: string; email: string; sandi: string }[] }> {
+    if (ALLOW_MOCK) throw new Error("Mode demo: bulk reset butuh backend.");
+    return req("/api/employees/bulk-reset", { method: "POST", body: JSON.stringify(body) });
   },
   pengajuan(jenis: JenisPengajuan, status?: string): Promise<PengajuanRow[]> {
     if (ALLOW_MOCK) return Promise.resolve([]);

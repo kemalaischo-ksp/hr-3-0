@@ -144,28 +144,63 @@ function getCookie(req, name) {
 }
 
 // ---------- CORS API (dev frontend & subdomain produksi) ----------
-// Produksi: CORS_ORIGIN=https://hr.ksp-nextcloud.my.id (tanpa itu, browser tolak).
+// Produksi: CORS_ORIGIN=https://hr.office-alwildan.id (tanpa itu, browser tolak).
 const CORS_LIST = (process.env.CORS_ORIGIN || "http://127.0.0.1:5173").split(",").map((s) => s.trim()).filter(Boolean);
 app.use("/api/*", cors({ origin: CORS_LIST, allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], credentials: true }));
 
-// ---------- header keamanan dasar ----------
+// ---------- identitas klien untuk rate-limit ----------
+// JANGAN pakai X-Forwarded-For mentah (bisa dipalsukan). Di belakang
+// Cloudflare + Caddy, IP asli ada di CF-Connecting-IP / X-Real-IP.
+// Origin juga hanya bisa menjangkau 127.0.0.1 (Caddy), jadi header ini tepercaya.
+function clientIp(c) {
+  return (
+    c.req.header("CF-Connecting-IP") ||
+    c.req.header("X-Real-IP") ||
+    (c.req.header("X-Forwarded-For") || "").split(",")[0].trim() ||
+    "local"
+  );
+}
+
+// ---------- header keamanan ----------
 app.use("*", async (c, next) => {
   await next();
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
   c.header("Referrer-Policy", "no-referrer");
+  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  c.header("Permissions-Policy", "geolocation=(self), camera=(self), microphone=()");
+  c.header(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
+      "form-action 'self'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+    ].join("; ")
+  );
 });
 
-// ---------- rate-limit login (memori proses; cukup untuk pilot) ----------
+// ---------- rate-limit (memori proses; cukup untuk pilot) ----------
 const LOGIN_MAX = 10;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const loginHits = new Map(); // key -> [timestamps]
 function loginAllowed(key) {
+  return rateOk(key, LOGIN_MAX, LOGIN_WINDOW_MS);
+}
+// Limiter serbaguna: key -> [timestamps]; true bila masih di bawah batas.
+const rateHits = new Map();
+function rateOk(key, max, windowMs) {
   const now = Date.now();
-  const arr = (loginHits.get(key) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
-  if (arr.length >= LOGIN_MAX) return false;
+  const arr = (rateHits.get(key) || []).filter((t) => now - t < windowMs);
+  if (arr.length >= max) return false;
   arr.push(now);
-  loginHits.set(key, arr);
+  rateHits.set(key, arr);
   return true;
 }
 
@@ -245,7 +280,7 @@ app.post("/api/login", async (c) => {
   const identifier = body.identifier || body.email;
   const password = body.password;
   if (!identifier || !password) return c.json({ error: "Lengkapi email dan kata sandi" }, 400);
-  const ip = c.req.header("X-Forwarded-For") || "local";
+  const ip = clientIp(c);
   const key = `${ip}:${String(identifier).toLowerCase()}`;
   if (!loginAllowed(key)) return c.json({ error: "Terlalu banyak percobaan. Coba lagi 10 menit." }, 429);
 
@@ -290,7 +325,7 @@ function baseUrlPublik() {
   return (
     (process.env.APP_URL || "").trim() ||
     (process.env.CORS_ORIGIN || "").split(",")[0].trim() ||
-    "https://hr.ksp-nextcloud.my.id"
+"https://hr.office-alwildan.id"
   );
 }
 async function kirimEmailResend({ to, subject, html, text }) {
@@ -311,7 +346,7 @@ const PESAN_LUPA = "Jika email terdaftar, tautan reset sudah dikirim. Cek inbox/
 app.post("/api/forgot-password", async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const email = String(b.email || "").trim().toLowerCase();
-  const ip = c.req.header("X-Forwarded-For") || "local";
+  const ip = clientIp(c);
   if (!loginAllowed(`fp:${ip}:${email}`)) return c.json({ error: "Terlalu banyak permintaan. Coba lagi 10 menit." }, 429);
   if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     const user = await c.env.DB.prepare(
@@ -356,7 +391,7 @@ app.post("/api/reset-password", async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const token = String(b.token || "");
   const password = String(b.password || "");
-  const ip = c.req.header("X-Forwarded-For") || "local";
+  const ip = clientIp(c);
   if (!loginAllowed(`rs:${ip}`)) return c.json({ error: "Terlalu banyak percobaan. Coba lagi 10 menit." }, 429);
   if (!token) return c.json({ error: "Token reset wajib" }, 400);
   if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
@@ -419,7 +454,7 @@ app.post("/api/users", auth, requirePerm("users.kelola"), async (c) => {
   }
   await c.env.DB.prepare(
     "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
-  ).bind(u.id, "user_create", "users", 0, JSON.stringify({ email, role }), c.req.header("X-Forwarded-For") || "").run();
+  ).bind(u.id, "user_create", "users", 0, JSON.stringify({ email, role }), clientIp(c)).run();
   return c.json({ ok: true, id });
 });
 
@@ -452,7 +487,7 @@ app.patch("/api/users/:id", auth, requirePerm("users.kelola"), async (c) => {
   if ((r.meta?.changes ?? 0) === 0) return c.json({ error: "Pengguna tidak ditemukan" }, 404);
   await c.env.DB.prepare(
     "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
-  ).bind(u.id, "user_update", "users", 0, JSON.stringify({ id, ubah: sets }), c.req.header("X-Forwarded-For") || "").run();
+  ).bind(u.id, "user_update", "users", 0, JSON.stringify({ id, ubah: sets }), clientIp(c)).run();
   return c.json({ ok: true });
 });
 
@@ -467,7 +502,7 @@ app.get("/api/employees", auth, requirePerm("karyawan.lihat", "slip.lihat"), asy
              e.thp_kotor, e.konfirmasi, e.thp_bersih, e.total_tk_thr, e.tk, e.thr_bulan,
              e.tmt_aktif, e.mode_thp, e.status_aktivasi, e.cv_url,
              e.status_kerja, e.tgl_masuk, e.atasan_id, e.foto_url, e.kontak_darurat,
-             cb.kode AS cabang,
+             cb.kode AS cabang, (e.user_id IS NOT NULL) AS punya_akun,
              atasan.nama_gelar AS atasan_nama
            FROM employees e JOIN units un ON un.id = e.unit_id LEFT JOIN employees atasan ON atasan.id = e.atasan_id LEFT JOIN cabangs cb ON cb.id = COALESCE(e.cabang_id, un.cabang_id)`;
   const args = [];
@@ -509,11 +544,270 @@ app.get("/api/employees/:id", auth, async (c) => {
        e.tmt_aktif, e.mode_thp, e.status_aktivasi, e.cv_url, e.kesehatan_url,
        e.status_kerja, e.tgl_masuk, e.atasan_id, e.foto_url, e.kontak_darurat,
        atasan.nama_gelar AS atasan_nama
-     FROM employees e JOIN units un ON un.id = e.unit_id LEFT JOIN employees atasan ON atasan.id = e.atasan_id WHERE e.id = ?`
+      FROM employees e JOIN units un ON un.id = e.unit_id LEFT JOIN employees atasan ON atasan.id = e.atasan_id WHERE e.id = ?`
   ).bind(id).first();
   if (!e) return c.json({ error: "Tidak ditemukan" }, 404);
   return c.json(e);
 });
+
+// STATISTIK HOLDING — master_admin (semua) / hr_cabang (cabangnya).
+// Agregat: per cabang (total, aktif, pending, gender), per divisi (unit),
+// per pendidikan (jenjang tertinggi), total gender & akun.
+app.get("/api/statistik", auth, requirePerm("laporan.lihat", "karyawan.lihat"), async (c) => {
+  const u = c.get("user");
+  let cabFilter = null;
+  if (u.role === "hr_cabang") {
+    cabFilter = await userCabangId(c.env.DB, u);
+    if (!cabFilter && u.unit_id) {
+      // fallback unit lama: batasi ke unitnya saja
+      const { results } = await c.env.DB.prepare(
+        `SELECT e.id, e.status_aktivasi, e.status_kerja, e.gender, e.unit_id, un.nama AS unit,
+                NULL AS cabang_kode, NULL AS cabang_nama
+         FROM employees e JOIN units un ON un.id = e.unit_id WHERE e.unit_id = ?`
+      ).bind(u.unit_id).all();
+      return c.json(ringkasStatistik(results, [], true));
+    }
+  }
+  const args = [];
+  let where = "";
+  if (cabFilter) { where = "WHERE COALESCE(e.cabang_id, un.cabang_id) = ?"; args.push(cabFilter); }
+  const { results: rows } = await c.env.DB.prepare(
+    `SELECT e.id, e.status_aktivasi, e.status_kerja, e.gender, e.unit_id, un.nama AS unit,
+            cb.kode AS cabang_kode, cb.nama AS cabang_nama
+     FROM employees e JOIN units un ON un.id = e.unit_id
+     LEFT JOIN cabangs cb ON cb.id = COALESCE(e.cabang_id, un.cabang_id)
+     ${where} ORDER BY e.id`
+  ).bind(...args).all();
+  const ids = rows.map((r) => r.id);
+  let pend = [];
+  if (ids.length) {
+    const ph = ids.map(() => "?").join(",");
+    const r = await c.env.DB.prepare(
+      `SELECT employee_id, jenjang FROM pendidikan WHERE employee_id IN (${ph})`
+    ).bind(...ids).all();
+    pend = r.results;
+  }
+  return c.json(ringkasStatistik(rows, pend, false));
+});
+
+function ringkasStatistik(rows, pendRows, unitSaja) {
+  const bobot = { S3: 3, S2: 2, S1: 1 };
+  const tertinggi = new Map();
+  for (const p of pendRows) {
+    const cur = tertinggi.get(p.employee_id);
+    if (!cur || (bobot[p.jenjang] || 0) > (bobot[cur] || 0)) tertinggi.set(p.employee_id, p.jenjang);
+  }
+  const kosong = () => ({ total: 0, aktif: 0, pending: 0, pria: 0, perempuan: 0, tanpa_gender: 0 });
+  const isi = (ag, r) => {
+    ag.total += 1;
+    if (r.status_aktivasi === "aktif") ag.aktif += 1; else ag.pending += 1;
+    if (r.gender === "Pria") ag.pria += 1;
+    else if (r.gender === "Perempuan") ag.perempuan += 1;
+    else ag.tanpa_gender += 1;
+  };
+  const total = { ...kosong(), cabang: 0 };
+  const perCabang = new Map();
+  const perDivisi = new Map();
+  const perPendidikan = { S3: 0, S2: 0, S1: 0, belum: 0 };
+  for (const r of rows) {
+    isi(total, r);
+    const ck = r.cabang_kode || (unitSaja ? "UNIT" : "TANPA_CABANG");
+    if (!perCabang.has(ck)) perCabang.set(ck, { kode: r.cabang_kode, nama: r.cabang_nama || r.unit || ck, ...kosong() });
+    isi(perCabang.get(ck), r);
+    const dk = r.unit || "Tanpa unit";
+    if (!perDivisi.has(dk)) perDivisi.set(dk, { unit: dk, ...kosong() });
+    isi(perDivisi.get(dk), r);
+    const j = tertinggi.get(r.id);
+    if (j && perPendidikan[j] !== undefined) perPendidikan[j] += 1;
+    else perPendidikan.belum += 1;
+  }
+  total.cabang = perCabang.size;
+  const srt = (m) => [...m.values()].sort((a, b) => b.total - a.total);
+  return {
+    total, per_cabang: srt(perCabang), per_divisi: srt(perDivisi), per_pendidikan: perPendidikan,
+    gender: { pria: total.pria, perempuan: total.perempuan, tanpa: total.tanpa_gender },
+  };
+}
+
+// BUATKAN AKUN dari karyawan — users.kelola (scope cabang).
+// Body {email?, password?, role?}: email default email karyawan (wajib bila kosong),
+// password kosong = acak 12 char (dikembalikan sekali), role default pegawai.
+app.post("/api/employees/:id/buatkan-akun", auth, requirePerm("users.kelola"), async (c) => {
+  const u = c.get("user");
+  const empId = Number(c.req.param("id"));
+  const b = await c.req.json().catch(() => ({}));
+  const chk = await employeeInScope(c.env.DB, u, empId);
+  if (!chk.ok) return c.json({ error: chk.error }, chk.code);
+  const e = await c.env.DB.prepare(
+    "SELECT id, nip, nama_gelar, email, unit_id, user_id FROM employees WHERE id = ?"
+  ).bind(empId).first();
+  if (!e) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (e.user_id) {
+    const ada = await c.env.DB.prepare("SELECT id, email FROM users WHERE id = ?").bind(e.user_id).first();
+    if (ada) return c.json({ error: `Sudah punya akun (${ada.email})` }, 409);
+  }
+  const email = String(b.email || e.email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return c.json({ error: "Email wajib (karyawan belum punya email — isi di dialog)" }, 400);
+  const role = b.role || "pegawai";
+  if (!["master_admin", "hr_cabang", "pegawai"].includes(role)) return c.json({ error: "Peran tidak dikenal" }, 400);
+  let password = String(b.password || "");
+  let acak = false;
+  if (!password) { password = sandiAcak(12); acak = true; }
+  if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  const id = "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO users (id, email, name, role, unit_id, password_hash, permissions) VALUES (?,?,?,?,?,?,?)"
+    ).bind(id, email, e.nama_gelar, role, e.unit_id, await hashPassword(password), "[]").run();
+  } catch {
+    return c.json({ error: "Email sudah dipakai akun lain" }, 409);
+  }
+  await c.env.DB.prepare("UPDATE employees SET user_id = ? WHERE id = ?").bind(id, empId).run();
+  await c.env.DB.prepare(
+    "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
+  ).bind(u.id, "user_create_dari_karyawan", "users", 0, JSON.stringify({ email, role, employee_id: empId }), clientIp(c)).run();
+  const hasil = { ok: true, id, email, role };
+  if (acak) hasil.sandi_sementara = password;
+  return c.json(hasil, 201);
+});
+
+// HAPUS KARYAWAN — Admin pusat (karyawan.tambah). Pengaman: tolak bila punya
+// riwayat payroll atau masih menjadi atasan bawahan. Dokumen metadata ikut
+// dihapus; akun login tertaut ikut dihapus; sisanya CASCADE oleh FK.
+app.delete("/api/employees/:id", auth, requirePerm("karyawan.tambah"), async (c) => {
+  const u = c.get("user");
+  const empId = Number(c.req.param("id"));
+  const chk = await employeeInScope(c.env.DB, u, empId);
+  if (!chk.ok) return c.json({ error: chk.error }, chk.code);
+  const e = await c.env.DB.prepare(
+    "SELECT id, nip, nama_gelar, user_id FROM employees WHERE id = ?"
+  ).bind(empId).first();
+  if (!e) return c.json({ error: "Tidak ditemukan" }, 404);
+  const pay = await c.env.DB.prepare("SELECT count(*) AS n FROM payrolls WHERE employee_id = ?").bind(empId).first();
+  if (pay && Number(pay.n) > 0)
+    return c.json({ error: `Tidak bisa dihapus: punya ${pay.n} riwayat payroll` }, 422);
+  const baw = await c.env.DB.prepare("SELECT count(*) AS n FROM employees WHERE atasan_id = ?").bind(empId).first();
+  if (baw && Number(baw.n) > 0)
+    return c.json({ error: `Tidak bisa dihapus: masih atasan dari ${baw.n} karyawan (pindahkan dulu)` }, 422);
+  await c.env.DB.prepare("DELETE FROM documents WHERE employee_id = ?").bind(empId).run();
+  if (e.user_id) await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(e.user_id).run();
+  await c.env.DB.prepare("DELETE FROM employees WHERE id = ?").bind(empId).run();
+  await c.env.DB.prepare(
+    "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_lama, ip) VALUES (?,?,?,?,?,?)"
+  ).bind(u.id, "karyawan.hapus", "employees", empId, JSON.stringify({ nip: e.nip, nama: e.nama_gelar }), clientIp(c)).run();
+  return c.json({ ok: true, nip: e.nip });
+});
+
+// BULK AKUN — buatkan akun untuk SEMUA karyawan dalam scope yang belum punya
+// akun dan punya email valid. Body {role?, cabang?, password?} — password kosong
+// = acak per akun. Kembalikan kredensial SEKALI (jangan disimpan di server).
+app.post("/api/employees/bulk-akun", auth, requirePerm("users.kelola"), async (c) => {
+  const u = c.get("user");
+  const b = await c.req.json().catch(() => ({}));
+  const role = b.role || "pegawai";
+  if (!["master_admin", "hr_cabang", "pegawai"].includes(role)) return c.json({ error: "Peran tidak dikenal" }, 400);
+  let passwordSama = String(b.password || "");
+  if (passwordSama && passwordSama.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  let cabFilter = typeof b.cabang === "string" && b.cabang ? b.cabang : null;
+  if (u.role === "hr_cabang") {
+    const milikId = await userCabangId(c.env.DB, u);
+    const milikKode = milikId
+      ? (await c.env.DB.prepare("SELECT kode FROM cabangs WHERE id = ?").bind(milikId).first())?.kode || null
+      : null;
+    if (cabFilter && milikKode && cabFilter !== milikKode) return c.json({ error: "Bukan cabang Anda" }, 403);
+    if (!milikKode && u.unit_id) {
+      const { results } = await c.env.DB.prepare(
+        "SELECT e.id, e.nip, e.nama_gelar, e.email, e.unit_id FROM employees e WHERE e.unit_id = ? AND e.user_id IS NULL"
+      ).bind(u.unit_id).all();
+      return bulkBuatAkun(c, u, results, role, passwordSama);
+    }
+    if (!milikKode) return c.json({ ok: true, dibuat: [], dilewati: [] });
+    cabFilter = milikKode;
+  }
+  const args = [];
+  let where = "e.user_id IS NULL";
+  if (cabFilter) { where += " AND COALESCE(e.cabang_id, un.cabang_id) = (SELECT id FROM cabangs WHERE kode = ?)"; args.push(cabFilter); }
+  const { results } = await c.env.DB.prepare(
+    `SELECT e.id, e.nip, e.nama_gelar, e.email, e.unit_id FROM employees e
+     JOIN units un ON un.id = e.unit_id WHERE ${where} ORDER BY e.id`
+  ).bind(...args).all();
+  return bulkBuatAkun(c, u, results, role, passwordSama);
+});
+
+async function bulkBuatAkun(c, u, rows, role, passwordSama) {
+  const { results: ada } = await c.env.DB.prepare("SELECT lower(email) AS email FROM users").all();
+  const terpakai = new Set(ada.map((r) => r.email));
+  const dibuat = [];
+  const dilewati = [];
+  for (const e of rows) {
+    const email = String(e.email || "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { dilewati.push({ nip: e.nip, nama: e.nama_gelar, alasan: "tanpa email valid" }); continue; }
+    if (terpakai.has(email)) { dilewati.push({ nip: e.nip, nama: e.nama_gelar, alasan: "email sudah dipakai" }); continue; }
+    const sandi = passwordSama || sandiAcak(12);
+    const id = "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    try {
+      await c.env.DB.prepare(
+        "INSERT INTO users (id, email, name, role, unit_id, password_hash, permissions) VALUES (?,?,?,?,?,?,?)"
+      ).bind(id, email, e.nama_gelar, role, e.unit_id, await hashPassword(sandi), "[]").run();
+    } catch {
+      dilewati.push({ nip: e.nip, nama: e.nama_gelar, alasan: "email sudah dipakai" }); continue;
+    }
+    terpakai.add(email);
+    await c.env.DB.prepare("UPDATE employees SET user_id = ? WHERE id = ?").bind(id, e.id).run();
+    dibuat.push({ nip: e.nip, nama: e.nama_gelar, email, sandi });
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
+  ).bind(u.id, "user_bulk_akun", "users", 0, JSON.stringify({ dibuat: dibuat.length, dilewati: dilewati.length, role }), clientIp(c)).run();
+  return c.json({ ok: true, dibuat, dilewati });
+}
+
+// BULK RESET — acak ulang sandi SEMUA akun tertaut karyawan dalam scope.
+// Body {cabang?}. Master_admin & diri sendiri dikecualikan. Kembalikan sekali.
+app.post("/api/employees/bulk-reset", auth, requirePerm("users.kelola"), async (c) => {
+  const u = c.get("user");
+  const b = await c.req.json().catch(() => ({}));
+  let cabFilter = typeof b.cabang === "string" && b.cabang ? b.cabang : null;
+  if (u.role === "hr_cabang") {
+    const milikId = await userCabangId(c.env.DB, u);
+    const milikKode = milikId
+      ? (await c.env.DB.prepare("SELECT kode FROM cabangs WHERE id = ?").bind(milikId).first())?.kode || null
+      : null;
+    if (cabFilter && milikKode && cabFilter !== milikKode) return c.json({ error: "Bukan cabang Anda" }, 403);
+    if (!milikKode && u.unit_id) {
+      const { results } = await c.env.DB.prepare(
+        `SELECT us.id, us.email, e.nip, e.nama_gelar FROM employees e JOIN users us ON us.id = e.user_id
+         WHERE e.unit_id = ? AND us.role != 'master_admin' AND us.id != ?`
+      ).bind(u.unit_id, u.id).all();
+      return bulkResetSandi(c, u, results);
+    }
+    if (!milikKode) return c.json({ ok: true, direset: [] });
+    cabFilter = milikKode;
+  }
+  const args = [];
+  let where = "us.role != 'master_admin' AND us.id != ?";
+  args.push(u.id);
+  if (cabFilter) { where += " AND COALESCE(e.cabang_id, un.cabang_id) = (SELECT id FROM cabangs WHERE kode = ?)"; args.push(cabFilter); }
+  const { results } = await c.env.DB.prepare(
+    `SELECT us.id, us.email, e.nip, e.nama_gelar FROM employees e
+     JOIN units un ON un.id = e.unit_id JOIN users us ON us.id = e.user_id
+     WHERE ${where} ORDER BY e.id`
+  ).bind(...args).all();
+  return bulkResetSandi(c, u, results);
+});
+
+async function bulkResetSandi(c, u, rows) {
+  const direset = [];
+  for (const r of rows) {
+    const sandi = sandiAcak(12);
+    await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(sandi), r.id).run();
+    direset.push({ nip: r.nip, nama: r.nama_gelar, email: r.email, sandi });
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
+  ).bind(u.id, "user_bulk_reset", "users", 0, JSON.stringify({ direset: direset.length }), clientIp(c)).run();
+  return c.json({ ok: true, direset });
+}
 
 // TAMBAH KARYAWAN — hanya Admin pusat (izin karyawan.tambah; HR cabang tidak punya).
 // NIP otomatis via next_nip(tahun berjalan); status awal draft.
@@ -539,6 +833,8 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
   if (tgl_lahir && !/^\d{4}-\d{2}-\d{2}$/.test(tgl_lahir)) return c.json({ error: "Tanggal lahir harus YYYY-MM-DD" }, 400);
   const kawin = b.status_kawin ? String(b.status_kawin).trim() : null;
   if (kawin && !["Lajang", "Menikah", "Janda", "Duda"].includes(kawin)) return c.json({ error: "Status kawin tidak dikenal" }, 400);
+  const gender = b.gender ? String(b.gender).trim() : null;
+  if (gender && !["Pria", "Perempuan"].includes(gender)) return c.json({ error: "Gender harus Pria/Perempuan" }, 400);
   const num = (v) => (v == null || v === "" ? null : Number(v));
   const tinggi = num(b.tinggi_cm), berat = num(b.berat_kg), gaji = num(b.gaji_diajukan);
   if ((tinggi != null && !(tinggi > 0 && tinggi < 300)) || (berat != null && !(berat > 0 && berat < 500)))
@@ -598,15 +894,15 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
       `INSERT INTO employees (unit_id, cabang_id, nip, nama, nama_gelar, email, no_hp, posisi_diajukan, mapel,
         nik_ktp, alamat, tempat_lahir, tgl_lahir, status_kawin, tinggi_cm, berat_kg, transport,
         gaji_diajukan, bank_utama, norek_utama, bank_lain, norek_lain, status_aktivasi,
-        atasan_id, cabang_lainnya)
+        atasan_id, cabang_lainnya, gender)
        VALUES (?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?, 'draft',
-        ?, ?) RETURNING id, nip`
+        ?, ?, ?) RETURNING id, nip`
     ).bind(unit_id, unit.cabang_id ?? null, nip, nama, nama,
       email || null, no_hp || null, b.posisi_diajukan || null, b.mapel || null,
       nik || null, b.alamat || null, b.tempat_lahir || null, tgl_lahir || null, kawin || null,
       tinggi, berat, b.transport || null,
       gaji, bank(b.bank_utama), norek_utama || null, bank(b.bank_lain), norek_lain || null,
-      atasan_id, cabang_lainnya).first();
+      atasan_id, cabang_lainnya, gender).first();
     // CV: link eksplisit diutamakan; arsip upload (0-*.pdf) di-rename ke ID baru.
     let cv_url = null;
     if (typeof b.cv_url === "string" && /^https?:\/\/.{5,500}$/.test(b.cv_url.trim())) cv_url = b.cv_url.trim();
@@ -637,7 +933,7 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
     await c.env.DB.prepare(
       "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_lama, nilai_baru, ip) VALUES (?,?,?,?,?,?,?)"
     ).bind(u.id, "karyawan.tambah", "employees", ins.id, null,
-      JSON.stringify({ nip, nama, unit_id }), c.req.header("X-Forwarded-For") || "").run();
+      JSON.stringify({ nip, nama, unit_id }), clientIp(c)).run();
     return c.json({ ok: true, id: ins.id, nip }, 201);
   } catch (e) {
     const msg = String(e?.message || e);
@@ -651,6 +947,8 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
 // cth. Ollama http://host:11434/v1); tanpa itu murni regex deterministik.
 const PARSE_MAKS = Number(process.env.PARSE_MAKS_BYTE || 10 * 1024 * 1024);
 app.post("/api/employees/parse", auth, requirePerm("karyawan.tambah"), async (c) => {
+  if (!rateOk(`parse:${clientIp(c)}`, 20, 60 * 1000))
+    return c.json({ error: "Terlalu banyak unggahan. Coba lagi 1 menit." }, 429);
   const fd = await c.req.formData().catch(() => null);
   if (!fd) return c.json({ error: "Form multipart wajib" }, 400);
   const file = fd.get("file");
@@ -735,7 +1033,7 @@ app.post("/api/employees/:id/activate", auth, async (c) => {
   ).bind(u.id, "activate:" + next, "employees", id,
     JSON.stringify({ status: cur.status_aktivasi }),
     JSON.stringify({ status: next, thp_bersih: n(b.thp_bersih) }),
-    c.req.header("X-Forwarded-For") || "").run();
+    clientIp(c)).run();
 
   return c.json({ ok: true, dari: cur.status_aktivasi, ke: next });
 });
@@ -1221,6 +1519,8 @@ app.patch("/api/employees/:id/data-kerja", auth, requirePerm("karyawan.kelola"),
   if (!chk.ok) return c.json({ error: chk.error }, chk.code);
   if (b.status_kerja !== undefined && !["aktif", "cuti", "resign", "nonaktif"].includes(b.status_kerja))
     return c.json({ error: "status_kerja harus aktif/cuti/resign/nonaktif" }, 400);
+  if (b.gender !== undefined && b.gender !== null && b.gender !== "" && !["Pria", "Perempuan"].includes(b.gender))
+    return c.json({ error: "gender harus Pria/Perempuan" }, 400);
   if (b.tgl_masuk !== undefined && b.tgl_masuk !== null && !TGL_RE.test(String(b.tgl_masuk)))
     return c.json({ error: "tgl_masuk harus YYYY-MM-DD" }, 400);
   if (b.atasan_id !== undefined && b.atasan_id !== null) {
@@ -1228,7 +1528,7 @@ app.patch("/api/employees/:id/data-kerja", auth, requirePerm("karyawan.kelola"),
     const a = await c.env.DB.prepare("SELECT id FROM employees WHERE id = ?").bind(Number(b.atasan_id)).first();
     if (!a) return c.json({ error: "atasan_id tidak ditemukan" }, 404);
   }
-  const kolom = { atasan_id: "atasan_id", tgl_masuk: "tgl_masuk", status_kerja: "status_kerja", foto_url: "foto_url", kontak_darurat: "kontak_darurat" };
+  const kolom = { atasan_id: "atasan_id", tgl_masuk: "tgl_masuk", status_kerja: "status_kerja", foto_url: "foto_url", kontak_darurat: "kontak_darurat", gender: "gender" };
   const sets = [], args = [];
   for (const [k, col] of Object.entries(kolom)) {
     if (b[k] !== undefined) { sets.push(`${col} = ?`); args.push(b[k] === "" ? null : b[k]); }
@@ -1674,6 +1974,8 @@ const NAMA_ARSIP_RE = /^(\d+)-(\d+)-([a-z0-9]+)\.(pdf|jpg|png|webp)$/;
 
 app.post("/api/upload", auth, async (c) => {
   const u = c.get("user");
+  if (!rateOk(`upload:${clientIp(c)}`, 30, 60 * 1000))
+    return c.json({ error: "Terlalu banyak unggahan. Coba lagi 1 menit." }, 429);
   const fd = await c.req.formData().catch(() => null);
   if (!fd) return c.json({ error: "Form multipart wajib" }, 400);
   const file = fd.get("file");
@@ -1739,7 +2041,7 @@ app.post("/api/users/:id/undang", auth, requirePerm("users.kelola"), async (c) =
   if (!t.aktif) return c.json({ error: "Akun nonaktif — aktifkan dulu" }, 422);
   const set = await getPengaturan(c.env.DB);
   const sandi = sandiAcak();
-  const masukUrl = (process.env.CORS_ORIGIN || "").split(",")[0] || "https://hr.ksp-nextcloud.my.id";
+  const masukUrl = (process.env.CORS_ORIGIN || "").split(",")[0] || "https://hr.office-alwildan.id";
   const pesan = `Assalamu'alaikum ${t.name || t.email},\nakun HRIS AL-WILDAN Anda sudah aktif.\nEmail: ${t.email}\nSandi sementara: ${sandi}\nMasuk: ${masukUrl}/login\nSegera ganti sandi setelah masuk.`;
   if (via === "email") {
     if (!set.SMTP_HOST || !set.SMTP_USER) return c.json({ error: "SMTP belum dikonfigurasi (lihat Pengaturan)" }, 422);

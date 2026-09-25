@@ -51,13 +51,16 @@
    ```bash
    ssh ubuntu@43.156.130.183   # tes dulu; password dari webmail Tencent
    ```
-2. Transfer folder (keluarkan yang berat):
+2. Transfer folder (keluarkan yang berat **dan RAHASIA**):
    ```bash
    cd "/Users/kemal/Documents/KSP-AI/BLACK MIRROR"
    rsync -avz --exclude 'web/node_modules' --exclude 'api/node_modules' \
      --exclude 'web/dist' --exclude 'data' \
+     --exclude '.env' --exclude 'api/.env' --exclude 'web/.env' \
      "HR 3.0/" ubuntu@43.156.130.183:~/hr30/
    ```
+   > PENTING: `--exclude '.env'` wajib. `api/.env` laptop memuat `RESEND_API_KEY`
+   > aktif — jangan sampai ikut ke VPS. `.env` produksi dibuat langsung di VPS.
 3. Di VPS:
    ```bash
    cd ~/hr30
@@ -76,7 +79,10 @@ sudo apt install -y caddy
 sudo nano /etc/caddy/Caddyfile
 # isi:
 # hr.office-alwildan.id {
-#     reverse_proxy 127.0.0.1:3000
+#     encode gzip
+#     reverse_proxy 127.0.0.1:3000 {
+#         header_up X-Real-IP {remote_host}
+#     }
 # }
 sudo systemctl reload caddy
 ```
@@ -84,3 +90,41 @@ sudo systemctl reload caddy
 Verifikasi: `https://hr.office-alwildan.id/login` gembok hijau → login admin demo
 → **amankan akun demo** → NIP final → 1 aktivasi + 1 slip → backup pertama →
 cron harian (detail: `RUNBOOK_OPERASIONAL.md`).
+
+> Header keamanan (CSP/HSTS/Permissions-Policy) sudah dikirim aplikasi
+> (`api/src/index.js`), jadi tidak perlu diulang di Caddy. `header_up X-Real-IP`
+> penting agar rate-limit login memakai IP asli, bukan IP Caddy.
+
+## BAGIAN F — Hardening Cloudflare + VPS (SEBELUM publik)
+
+**Cloudflare (dashboard, domain `office-alwildan.id`):**
+- [ ] SSL/TLS → Overview → **Full (strict)** (Caddy sudah punya sertifikat).
+- [ ] SSL/TLS → Edge Certificates → **Always Use HTTPS** ON, **HSTS** ON
+      (max-age 6 bulan, includeSubDomains).
+- [ ] Security → **Bot Fight Mode** ON.
+- [ ] Security → WAF → Custom rules: block path mengandung
+      `/.env`, `/.git`, `/wp-`, `/phpmyadmin`.
+- [ ] Security → WAF → Rate limiting: `/api/login` → 20 req/menit per IP → Block 10 menit.
+- [ ] Network → **DNSSEC OFF** (form kosong = benar, jangan diisi).
+
+**VPS Tencent Lighthouse (`ubuntu@43.156.130.183`):**
+```bash
+# Firewall: hanya SSH + HTTP/HTTPS
+sudo ufw default deny incoming
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+
+# SSH: kunci saja + fail2ban
+sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo systemctl restart ssh
+sudo apt install -y fail2ban && sudo systemctl enable --now fail2ban
+
+# Pastikan port 3000 TIDAK terbuka ke publik (sudah di-bind 127.0.0.1)
+sudo ss -tlnp | grep 3000   # harus 127.0.0.1:3000, bukan 0.0.0.0:3000
+```
+
+- [ ] Verifikasi `curl -I https://hr.office-alwildan.id/login` menampilkan
+      `strict-transport-security` dan `content-security-policy`.
+- [ ] Ganti sandi akun demo/seed, lalu hapus akun non-produksi.

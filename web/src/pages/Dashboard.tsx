@@ -4,8 +4,23 @@ import { Badge, STATUS_BADGE, STATUS_LABEL } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/tabs";
-import { api, bisa, type Dokumen, type Employee, type Pengumuman, type PresensiSaya, type Profil, type SessionUser } from "../lib/api";
+import { api, bisa, type Dokumen, type Employee, type Pengumuman, type PresensiSaya, type Profil, type SessionUser, type Statistik } from "../lib/api";
 import { masaKerja, rupiah, tglISOtoID } from "../lib/format";
+
+function Bar({ label, value, maks }: { label: string; value: number; maks: number }) {
+  const pct = maks > 0 ? Math.round((value / maks) * 100) : 0;
+  return (
+    <div className="text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate font-medium">{label}</span>
+        <span className="tnum text-muted-foreground">{value} · {pct}%</span>
+      </div>
+      <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-gradient-to-r from-[#e14eca] to-[#1d8cf8]" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const [data, setData] = useState<Employee[] | null>(null);
@@ -14,12 +29,15 @@ export function Dashboard() {
   const [mum, setMum] = useState<Pengumuman[]>([]);
   const [dokExp, setDokExp] = useState<(Dokumen & { nip?: string; nama_gelar?: string })[]>([]);
   const [profil, setProfil] = useState<Profil | null>(null);
+  const [stat, setStat] = useState<Statistik | null>(null);
 
   useEffect(() => {
     api.employees().then(setData);
     api.pengumuman().then(setMum).catch(() => {});
     api.me().then((m) => {
       setMe(m);
+      if (bisa(m, "laporan.lihat") || bisa(m, "karyawan.lihat"))
+        api.statistik().then(setStat).catch(() => {});
       if (m.role === "pegawai") {
         api.profilSaya().then(setProfil).catch(() => {});
         api.presensiSaya().then(setPres).catch(() => {});
@@ -49,7 +67,7 @@ export function Dashboard() {
     <div className="grid gap-5">
       <div>
         <p className="text-xs text-muted-foreground">HRIS · <b className="text-foreground">AW3 BSD City</b></p>
-        <h1 className="font-display text-2xl font-bold">{me?.role === "pegawai" ? "Dashboard saya" : "Dashboard cabang"}</h1>
+        <h1 className="font-display text-2xl font-bold">{me?.role === "pegawai" ? "Dashboard saya" : me?.role === "master_admin" ? "Dashboard holding" : "Dashboard cabang"}</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {[
@@ -68,6 +86,77 @@ export function Dashboard() {
           </Card>
         ))}
       </div>
+      {stat && me?.role !== "pegawai" ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              { label: "Total cabang", value: String(stat.total.cabang), icon: "🏫", tint: "bg-[#e3f0ff] text-info" },
+              { label: "Pria", value: String(stat.gender.pria), icon: "👨", tint: "bg-[#e3f0ff] text-info" },
+              { label: "Perempuan", value: String(stat.gender.perempuan), icon: "👩", tint: "bg-[#fce8f5] text-primary" },
+            ].map((s) => (
+              <Card key={s.label} className="wd-card">
+                <CardContent className="flex items-center gap-4 py-5">
+                  <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-xl ${s.tint}`}>{s.icon}</div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[.14em] text-muted-foreground">{s.label}</p>
+                    <p className="tnum truncate text-3xl font-bold text-foreground">{s.value}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="wd-card overflow-hidden">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle>Statistik per cabang</CardTitle>
+              <CardDescription>{stat.total.total} karyawan · {stat.total.aktif} aktif · {stat.total.pending} menunggu{stat.gender.tanpa ? ` · ${stat.gender.tanpa} gender belum diisi` : ""}</CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[11px] uppercase tracking-[.1em] text-muted-foreground">
+                    <th className="px-4 py-2">Cabang</th>
+                    <th className="px-4 py-2 text-right tnum">Total</th>
+                    <th className="px-4 py-2 text-right tnum">Aktif</th>
+                    <th className="px-4 py-2 text-right tnum">Pending</th>
+                    <th className="px-4 py-2 text-right tnum">Pria</th>
+                    <th className="px-4 py-2 text-right tnum">Perempuan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stat.per_cabang.map((c) => (
+                    <tr key={c.kode ?? c.nama} className="border-b border-border/60 last:border-0">
+                      <td className="px-4 py-2 font-medium">{c.nama}{c.kode && c.kode !== c.nama ? <span className="ml-1 font-mono text-[11px] text-muted-foreground">{c.kode}</span> : null}</td>
+                      <td className="px-4 py-2 text-right font-bold tnum">{c.total}</td>
+                      <td className="px-4 py-2 text-right text-success tnum">{c.aktif}</td>
+                      <td className="px-4 py-2 text-right text-muted-foreground tnum">{c.pending}</td>
+                      <td className="px-4 py-2 text-right tnum">{c.pria}</td>
+                      <td className="px-4 py-2 text-right tnum">{c.perempuan}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="wd-card">
+              <CardHeader className="pb-2"><CardTitle>Pendidikan (jenjang tertinggi)</CardTitle></CardHeader>
+              <CardContent className="grid gap-2">
+                {[["S3", stat.per_pendidikan.S3], ["S2", stat.per_pendidikan.S2], ["S1", stat.per_pendidikan.S1], ["Belum diisi", stat.per_pendidikan.belum]].map(([label, v]) => (
+                  <Bar key={label as string} label={label as string} value={v as number} maks={stat.total.total} />
+                ))}
+              </CardContent>
+            </Card>
+            <Card className="wd-card">
+              <CardHeader className="pb-2"><CardTitle>Divisi (unit)</CardTitle></CardHeader>
+              <CardContent className="grid gap-2">
+                {stat.per_divisi.slice(0, 8).map((d) => (
+                  <Bar key={d.unit} label={`${d.unit} (${d.aktif}/${d.total} aktif)`} value={d.total} maks={stat.total.total} />
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : null}
       {me?.role === "pegawai" && profil ? (
         <Card className="wd-card">
           <CardContent className="flex flex-wrap items-center gap-4 py-4">

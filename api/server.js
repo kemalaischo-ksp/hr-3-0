@@ -13,6 +13,21 @@ pg.types.setTypeParser(1082, (v) => v);
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
 
+// Fail-fast di produksi: jangan pernah jalan dengan rahasia default/kosong.
+// Proxy produksi ditandai oleh COOKIE_SECURE=1 (lihat docker-compose.yml).
+const isProd = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "1";
+if (isProd) {
+  const s = process.env.AUTH_SECRET || "";
+  if (s.length < 32 || s.includes("dev-insecure") || s.includes("ubah-saya") || s.includes("ganti-dengan")) {
+    console.error("FATAL: AUTH_SECRET wajib ≥32 karakter acak di produksi (openssl rand -base64 32).");
+    process.exit(1);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error("FATAL: DATABASE_URL wajib di produksi.");
+    process.exit(1);
+  }
+}
+
 const NC = process.env.NEXTCLOUD_URL
   ? createNextcloud({
       baseUrl: process.env.NEXTCLOUD_URL,

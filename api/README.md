@@ -24,6 +24,11 @@ Rute non-API otomatis fallback ke `index.html` (SPA).
 | POST | `/api/reset-password` `{token,password≥8}` | publik (rate-limit; token 1x pakai) |
 | GET | `/api/employees`, `/api/employees/:id` | scope cabang; tanpa NIK/norek |
 | POST | `/api/employees` `{nama_gelar,unit_id,…,atasan_id?,cabang_lainnya?}` | karyawan.tambah (cabang diturunkan dari unit; cabang_lainnya hanya bila unit cabang LAIN) |
+| POST | `/api/employees/:id/buatkan-akun` `{email?,password?,role?}` | users.kelola (scope cabang; password kosong = acak 12 char dikembalikan sekali; 409 bila sudah punya akun) |
+| POST | `/api/employees/bulk-akun` `{role?,cabang?,password?}` | users.kelola (scope cabang; buatkan akun semua tanpa akun + email valid; kredensial dikembalikan sekali) |
+| POST | `/api/employees/bulk-reset` `{cabang?}` | users.kelola (scope cabang; acak ulang semua akun tertaut kecuali master_admin & diri sendiri; dikembalikan sekali) |
+| DELETE | `/api/employees/:id` | karyawan.tambah (tolak 422 bila punya payroll / masih atasan; akun tertaut ikut terhapus) |
+| GET | `/api/statistik` | laporan.lihat/karyawan.lihat (master_admin semua, hr_cabang cabangnya; per cabang, divisi, pendidikan, gender) |
 | POST | `/api/employees/:id/activate` | mesin 3-tahap (bawah) |
 | GET | `/api/employees/:id/aktivasi-log` | hr_cabang (cabangnya), master_admin |
 | GET | `/api/permission-catalog` | users.kelola (9 izin + bawaan peran) |
@@ -91,8 +96,10 @@ curl http://127.0.0.1:3000/api/health
 Reverse proxy (Caddy, HTTPS otomatis) di depan 127.0.0.1:3000:
 
 ```
-hr.ksp-nextcloud.my.id {
-    reverse_proxy 127.0.0.1:3000
+hr.office-alwildan.id {
+    reverse_proxy 127.0.0.1:3000 {
+        header_up X-Real-IP {remote_host}
+    }
 }
 ```
 
