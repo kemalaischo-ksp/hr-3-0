@@ -460,7 +460,10 @@ app.patch("/api/users/:id", auth, requirePerm("users.kelola"), async (c) => {
 app.get("/api/employees", auth, requirePerm("karyawan.lihat", "slip.lihat"), async (c) => {
   const u = c.get("user");
   let q = `SELECT e.id, e.nip, e.nama_gelar AS nama, e.nama_gelar, e.email, e.no_hp,
-             e.posisi_diajukan, e.mapel, un.nama AS unit, e.gaji_diajukan,
+             e.jabatan, e.gender, e.posisi_diajukan, e.mapel, un.nama AS unit, e.gaji_diajukan,
+             e.alamat, e.tempat_lahir, e.tgl_lahir, e.status_kawin, e.transport,
+             e.tinggi_cm, e.berat_kg,
+             e.bank_utama, e.norek_utama, e.bank_lain, e.norek_lain, e.kesehatan_url,
              e.thp_kotor, e.konfirmasi, e.thp_bersih, e.total_tk_thr, e.tk, e.thr_bulan,
              e.tmt_aktif, e.mode_thp, e.status_aktivasi, e.cv_url,
              e.status_kerja, e.tgl_masuk, e.atasan_id, e.foto_url, e.kontak_darurat,
@@ -499,8 +502,8 @@ app.get("/api/employees/:id", auth, async (c) => {
   const chk = await employeeInScope(c.env.DB, u, id);
   if (!chk.ok) return c.json({ error: chk.error }, chk.code);
   const e = await c.env.DB.prepare(
-    `SELECT e.id, e.nip, e.nama_gelar, e.email, e.no_hp, e.alamat, e.tempat_lahir, e.tgl_lahir,
-       e.status_kawin, e.posisi_diajukan, e.mapel, un.nama AS unit, e.gaji_diajukan,
+    `SELECT e.id, e.nip, e.nama_gelar, e.email, e.no_hp, e.jabatan, e.gender, e.alamat, e.tempat_lahir, e.tgl_lahir,
+       e.status_kawin, e.transport, e.tinggi_cm, e.berat_kg, e.posisi_diajukan, e.mapel, un.nama AS unit, e.gaji_diajukan,
        e.bank_utama, e.norek_utama, e.bank_lain, e.norek_lain,
        e.thp_kotor, e.konfirmasi, e.thp_bersih, e.total_tk_thr, e.tk, e.thr_bulan,
        e.tmt_aktif, e.mode_thp, e.status_aktivasi, e.cv_url, e.kesehatan_url,
@@ -554,6 +557,22 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
     return c.json({ error: e.message }, 400);
   }
   const bank = (v) => (v ? String(v).trim().slice(0, 30) : null);
+  // Pendidikan/pengalaman opsional — VALIDASI DI SINI (sebelum INSERT employees),
+  // supaya gagal validasi tak pernah menyisakan baris employees tanpa pendidikan/pengalaman
+  // (tak ada transaksi lintas tabel di adapter D1-compatible ini; lihat adapter/pg.js).
+  let ipk = null;
+  if (b.pendidikan && (b.pendidikan.perguruan_tinggi || b.pendidikan.prodi)) {
+    ipk = b.pendidikan.ipk == null || b.pendidikan.ipk === "" ? null : Number(b.pendidikan.ipk);
+    if (ipk != null && !(ipk >= 0 && ipk <= 4)) return c.json({ error: "IPK harus 0–4" }, 400);
+  }
+  const pengalamanRows = Array.isArray(b.pengalaman)
+    ? b.pengalaman.filter((p) => p && (p.deskripsi || p.salary != null)).slice(0, 3)
+    : [];
+  for (const p of pengalamanRows) {
+    const sal = p.salary == null || p.salary === "" ? null : Number(p.salary);
+    if (sal != null && !(sal >= 0)) return c.json({ error: `Nominal pengalaman tidak valid: "${p.deskripsi ?? ""}"` }, 400);
+    p._salaryValidated = sal;
+  }
   // Atasan langsung opsional (dipilih dari dropdown per cabang di form).
   const atasan_id = b.atasan_id == null || b.atasan_id === "" ? null : Number(b.atasan_id);
   if (atasan_id != null && !(atasan_id > 0))
@@ -601,26 +620,19 @@ app.post("/api/employees", auth, requirePerm("karyawan.tambah"), async (c) => {
     if (cv_url) {
       await c.env.DB.prepare("UPDATE employees SET cv_url=? WHERE id=?").bind(cv_url, ins.id).run();
     }
-    // Pendidikan S1 (opsional, satu baris)
+    // Pendidikan S1 (opsional, satu baris; sudah divalidasi di atas)
     if (b.pendidikan && (b.pendidikan.perguruan_tinggi || b.pendidikan.prodi)) {
-      const ipk = b.pendidikan.ipk == null || b.pendidikan.ipk === "" ? null : Number(b.pendidikan.ipk);
-      if (ipk != null && !(ipk >= 0 && ipk <= 4)) throw new Error("IPK di luar 0–4");
       await c.env.DB.prepare(
         "INSERT INTO pendidikan (employee_id, jenjang, perguruan_tinggi, prodi, ipk) VALUES (?,?,?,?,?)"
       ).bind(ins.id, "S1", b.pendidikan.perguruan_tinggi || null, b.pendidikan.prodi || null, ipk).run();
     }
-    // Pengalaman (opsional, maks 3 baris)
-    if (Array.isArray(b.pengalaman)) {
-      const rows = b.pengalaman.filter((p) => p && (p.deskripsi || p.salary != null)).slice(0, 3);
-      let ur = 0;
-      for (const p of rows) {
-        ur += 1;
-        const sal = p.salary == null || p.salary === "" ? null : Number(p.salary);
-        if (sal != null && !(sal >= 0)) throw new Error("Nominal pengalaman tidak valid");
-        await c.env.DB.prepare(
-          "INSERT INTO pengalaman (employee_id, urutan, deskripsi, salary) VALUES (?,?,?,?)"
-        ).bind(ins.id, ur, p.deskripsi || null, sal).run();
-      }
+    // Pengalaman (opsional, maks 3 baris; sudah divalidasi di atas)
+    let ur = 0;
+    for (const p of pengalamanRows) {
+      ur += 1;
+      await c.env.DB.prepare(
+        "INSERT INTO pengalaman (employee_id, urutan, deskripsi, salary) VALUES (?,?,?,?)"
+      ).bind(ins.id, ur, p.deskripsi || null, p._salaryValidated).run();
     }
     await c.env.DB.prepare(
       "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_lama, nilai_baru, ip) VALUES (?,?,?,?,?,?,?)"
@@ -1121,6 +1133,43 @@ app.get("/api/profil-saya", auth, async (c) => {
   ).bind(empId).first();
   if (!e) return c.json({ error: "Tidak ditemukan" }, 404);
   return c.json(e);
+});
+
+// ---------- Pendidikan & pengalaman kerja (biodata lamaran) ----------
+app.get("/api/pendidikan", auth, async (c) => {
+  const u = c.get("user");
+  let empId = Number(c.req.query("employee_id"));
+  if (u.role === "pegawai") {
+    empId = await empIdOfUser(c.env.DB, u);
+    if (!empId) return c.json({ error: "Akun belum tertaut ke data karyawan" }, 400);
+  } else {
+    if (!punya(u, "karyawan.lihat")) return c.json({ error: "Akses ditolak (izin kurang)" }, 403);
+    if (!empId) return c.json({ error: "employee_id wajib" }, 400);
+    const chk = await employeeInScope(c.env.DB, u, empId);
+    if (!chk.ok) return c.json({ error: chk.error }, chk.code);
+  }
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM pendidikan WHERE employee_id = ? ORDER BY CASE jenjang WHEN 'SMA' THEN 0 WHEN 'D1' THEN 1 WHEN 'D2' THEN 2 WHEN 'D3' THEN 3 WHEN 'D4' THEN 4 WHEN 'S1' THEN 5 WHEN 'S2' THEN 6 WHEN 'S3' THEN 7 ELSE 8 END"
+  ).bind(empId).all();
+  return c.json(results);
+});
+
+app.get("/api/pengalaman", auth, async (c) => {
+  const u = c.get("user");
+  let empId = Number(c.req.query("employee_id"));
+  if (u.role === "pegawai") {
+    empId = await empIdOfUser(c.env.DB, u);
+    if (!empId) return c.json({ error: "Akun belum tertaut ke data karyawan" }, 400);
+  } else {
+    if (!punya(u, "karyawan.lihat")) return c.json({ error: "Akses ditolak (izin kurang)" }, 403);
+    if (!empId) return c.json({ error: "employee_id wajib" }, 400);
+    const chk = await employeeInScope(c.env.DB, u, empId);
+    if (!chk.ok) return c.json({ error: chk.error }, chk.code);
+  }
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM pengalaman WHERE employee_id = ? ORDER BY urutan"
+  ).bind(empId).all();
+  return c.json(results);
 });
 
 // ---------- Riwayat jabatan & gaji ----------

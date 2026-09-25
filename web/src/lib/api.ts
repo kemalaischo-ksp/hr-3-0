@@ -8,10 +8,24 @@ export interface Employee {
   nama_gelar: string;
   email: string;
   no_hp: string;
+  jabatan?: string | null;
+  gender?: "Pria" | "Perempuan" | null;
   posisi_diajukan: string;
   mapel: string | null;
   unit: string;
   gaji_diajukan: number;
+  alamat?: string | null;
+  tempat_lahir?: string | null;
+  tgl_lahir?: string | null;
+  status_kawin?: string | null;
+  transport?: string | null;
+  tinggi_cm?: number | null;
+  berat_kg?: number | null;
+  bank_utama?: string | null;
+  norek_utama?: string | null;
+  bank_lain?: string | null;
+  norek_lain?: string | null;
+  kesehatan_url?: string | null;
   thp_kotor: number;
   konfirmasi: string | null;
   thp_bersih: number;
@@ -29,6 +43,23 @@ export interface Employee {
   cabang?: string | null;
   foto_url?: string | null;
   kontak_darurat?: string | null;
+}
+
+export interface Pendidikan {
+  id: number;
+  employee_id: number;
+  jenjang: "SMA" | "D1" | "D2" | "D3" | "D4" | "S1" | "S2" | "S3";
+  perguruan_tinggi: string | null;
+  prodi: string | null;
+  ipk: number | null;
+}
+
+export interface Pengalaman {
+  id: number;
+  employee_id: number;
+  urutan: number;
+  deskripsi: string | null;
+  salary: number | null;
 }
 
 export interface SessionUser {
@@ -442,6 +473,14 @@ export const api = {
   riwayatJabatan(employee_id?: number): Promise<RiwayatJabatan[]> {
     if (ALLOW_MOCK) return Promise.resolve([]);
     return req(`/api/riwayat-jabatan${employee_id ? `?employee_id=${employee_id}` : ""}`);
+  },
+  pendidikan(employee_id?: number): Promise<Pendidikan[]> {
+    if (ALLOW_MOCK) return Promise.resolve([]);
+    return req(`/api/pendidikan${employee_id ? `?employee_id=${employee_id}` : ""}`);
+  },
+  pengalaman(employee_id?: number): Promise<Pengalaman[]> {
+    if (ALLOW_MOCK) return Promise.resolve([]);
+    return req(`/api/pengalaman${employee_id ? `?employee_id=${employee_id}` : ""}`);
   },
   tambahRiwayat(body: { employee_id: number; tanggal?: string; jabatan_baru?: string; gaji_baru?: number; keterangan?: string; terapkan?: boolean }): Promise<{ ok: boolean }> {
     if (ALLOW_MOCK) return Promise.resolve({ ok: true });
