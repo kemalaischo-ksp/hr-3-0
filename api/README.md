@@ -18,10 +18,10 @@ Rute non-API otomatis fallback ke `index.html` (SPA).
 | Method | Endpoint | Peran |
 |---|---|---|
 | GET | `/api/health` | publik |
-| POST | `/api/login` `{email,password}` / `{identifier,password}` | publik (rate-limit 10x/10 mnt) |
-| POST | `/api/logout` · GET `/api/me` | login |
+| POST | `/api/login` `{email,password}` / `{identifier,password}` | publik (rate-limit 10x/10 mnt + lockout per-akun 5x/15 mnt; sesi server-side, cookie `__Host-` di produksi) |
+| POST | `/api/logout` · GET `/api/me` | login (logout mencabut sesi di DB) |
 | POST | `/api/forgot-password` `{email}` | publik (rate-limit; selalu respons generik; kirim tautan 1 jam via Resend bila `RESEND_API_KEY` diset) |
-| POST | `/api/reset-password` `{token,password≥8}` | publik (rate-limit; token 1x pakai) |
+| POST | `/api/reset-password` `{token,password≥12}` | publik (rate-limit; token 1x pakai; mencabut semua sesi lama) |
 | GET | `/api/employees`, `/api/employees/:id` | scope cabang; tanpa NIK/norek |
 | POST | `/api/employees` `{nama_gelar,unit_id,…,atasan_id?,cabang_lainnya?}` | karyawan.tambah (cabang diturunkan dari unit; cabang_lainnya hanya bila unit cabang LAIN) |
 | POST | `/api/employees/:id/buatkan-akun` `{email?,password?,role?}` | users.kelola (scope cabang; password kosong = acak 12 char dikembalikan sekali; 409 bila sudah punya akun) |
@@ -34,8 +34,8 @@ Rute non-API otomatis fallback ke `index.html` (SPA).
 | GET | `/api/permission-catalog` | users.kelola (9 izin + bawaan peran) |
 | GET | `/api/units` | users.kelola (penempatan unit) |
 | GET | `/api/users` | users.kelola |
-| POST | `/api/users` `{email,name,role,password≥8,permissions,unit_id}` | users.kelola |
-| PATCH | `/api/users/:id` `{name,role,unit_id,permissions,aktif,password}` | users.kelola (tak bisa nonaktifkan diri) |
+| POST | `/api/users` `{email,name,role,password≥12,permissions,unit_id}` | users.kelola |
+| PATCH | `/api/users/:id` `{name,role,unit_id,permissions,aktif,password}` | users.kelola (tak bisa nonaktifkan diri; ganti sandi mencabut sesi target) |
 | GET | `/api/absensi?tanggal=` | absensi.kelola (scope cabang) |
 | POST | `/api/absensi` `{employee_id,tanggal,status,keterangan}` | absensi.kelola (upsert) |
 | GET | `/api/presensi-saya` | presensi.mandiri (milik sendiri + riwayat 30 hari) |

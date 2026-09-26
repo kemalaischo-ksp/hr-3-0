@@ -80,9 +80,15 @@ operasional (UAT, data riil, NIP final) dan hardening keamanan sebelum publik.
 
 ### 3.1 Autentikasi & keamanan akun
 - ✅ Login sesi (cookie HttpOnly, SameSite=Lax, Secure di prod), logout.
+- ✅ **Sesi server-side (migrasi `012`)**: bisa dicabut, logout menghapus sesi di DB,
+  ganti/reset sandi otomatis membunuh semua sesi lama.
+- ✅ Cookie prefix `__Host-` di produksi (anti cookie-injection).
+- ✅ Anti-CSRF: cek `Origin`/`Referer` untuk semua request POST/PUT/PATCH/DELETE.
+- ✅ Lockout per-akun (5 gagal → kunci 15 menit) + audit `login_gagal`.
+- ✅ Kebijakan sandi: min 12, wajib huruf+angka, tolak sandi umum & memuat email.
 - ✅ Lupa & reset kata sandi via **Resend** (token 1x pakai, kedaluwarsa 1 jam, anti-enumerasi).
 - ✅ Rate-limit login/forgot/reset (10x/10 menit → 429).
-- ✅ Header keamanan dasar (`nosniff`, `X-Frame-Options`, `Referrer-Policy`).
+- ✅ Header keamanan dasar + CSP/HSTS/Permissions-Policy.
 - ✅ Undangan aktivasi via **email (SMTP/nodemailer)** atau **WhatsApp (gateway Fonnte)**.
 
 ### 3.2 Pengguna, peran & izin
@@ -160,7 +166,7 @@ operasional (UAT, data riil, NIP final) dan hardening keamanan sebelum publik.
 |---|---|
 | Endpoint API | ±60 (auth, master, aktivasi, absensi, pengajuan, dokumen, dll.) |
 | Halaman web | 19 halaman + 3 halaman auth |
-| Migrasi DB | 11 (`001`–`011`) + baseline `00_schema`/`01_seed` |
+| Migrasi DB | 12 (`001`–`012`) + baseline `00_schema`/`01_seed` |
 | Izin fitur | 29 kunci |
 | Cabang terdaftar | 32 + 3 non-fisik (HOLDING/YAYASAN/LINTAS) |
 | Baris SDM terimpor (uji) | 1.658 (data cleansing) |
