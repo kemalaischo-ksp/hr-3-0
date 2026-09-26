@@ -18,7 +18,10 @@ import { PDFParse } from "pdf-parse";
 import { aiLengkapi, parseSDM } from "../lib/sdmParse.js";
 
 const app = new Hono();
-const COOKIE = "hr30_session";
+// Nama cookie: di produksi pakai prefix __Host- (wajib Secure, Path=/, tanpa Domain)
+// → proteksi tambahan terhadap cookie injection dari subdomain lain.
+const SECURE_COOKIE = (process.env.COOKIE_SECURE || "") === "1";
+const COOKIE = SECURE_COOKIE ? "__Host-hr30_session" : "hr30_session";
 const SESSION_HOURS = 8;
 
 // ---------- util encoding ----------
@@ -161,6 +164,26 @@ function clientIp(c) {
   );
 }
 
+// ---------- anti-CSRF: cek Origin/Referer untuk request yang mengubah data ----------
+// SameSite=Lax sudah menolong; ini lapis kedua. Same-origin (Host sama) selalu
+// diizinkan; request non-browser tanpa Origin (mis. curl) dilewatkan — tetap dijaga rate-limit.
+function sameOrigin(c) {
+  const origin = c.req.header("Origin");
+  const host = c.req.header("Host");
+  if (!origin) {
+    const ref = c.req.header("Referer");
+    if (!ref) return true;
+    try { return new URL(ref).host === host; } catch { return false; }
+  }
+  if (CORS_LIST.includes(origin)) return true;
+  try { return new URL(origin).host === host; } catch { return false; }
+}
+app.use("/api/*", async (c, next) => {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(c.req.method) && !sameOrigin(c))
+    return c.json({ error: "Origin tidak diizinkan" }, 403);
+  await next();
+});
+
 // ---------- header keamanan ----------
 app.use("*", async (c, next) => {
   await next();
@@ -204,14 +227,45 @@ function rateOk(key, max, windowMs) {
   return true;
 }
 
+// ---------- kebijakan kata sandi (dipakai semua titik buat/reset) ----------
+const SANDI_UMUM = new Set([
+  "password", "password1", "password123", "passw0rd", "p@ssw0rd", "12345678",
+  "123456789", "1234567890", "12345678901", "qwerty123", "admin123", "admin12345",
+  "letmein123", "welcome123", "iloveyou123", "alwildan", "alwildan123", "hrwildan",
+  "hrwildan123", "hr123456789", "rahasia123", "hr30hr30hr30",
+]);
+function validasiSandi(pw, email) {
+  const s = String(pw || "");
+  if (s.length < 12) return "Kata sandi minimal 12 karakter";
+  if (s.length > 128) return "Kata sandi maksimal 128 karakter";
+  if (!/[A-Za-z]/.test(s) || !/[0-9]/.test(s)) return "Kata sandi harus memuat huruf dan angka";
+  if (SANDI_UMUM.has(s.toLowerCase())) return "Kata sandi terlalu umum, pilih yang lain";
+  const lokal = email ? String(email).split("@")[0].toLowerCase() : "";
+  if (lokal && lokal.length >= 3 && s.toLowerCase().includes(lokal)) return "Kata sandi tidak boleh memuat email Anda";
+  return null;
+}
+
+// ---------- cabut sesi server-side (logout paksa / ganti sandi) ----------
+async function revokeSessions(DB, userId, keepTokenHash = null) {
+  if (keepTokenHash)
+    await DB.prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?").bind(userId, keepTokenHash).run();
+  else
+    await DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId).run();
+}
+
 // ---------- middleware: wajib login ----------
 async function auth(c, next) {
   const token = getCookie(c.req, COOKIE);
   const payload = await verifyToken(token, secretOf(c.env));
   if (!payload) return c.json({ error: "Belum login" }, 401);
+  const ses = await c.env.DB.prepare(
+    "SELECT user_id, expires_at, revoked_at FROM sessions WHERE token_hash = ?"
+  ).bind(await sha256hex(token)).first();
+  if (!ses || ses.revoked_at || new Date(ses.expires_at).getTime() < Date.now())
+    return c.json({ error: "Sesi tidak valid atau berakhir. Silakan masuk ulang." }, 401);
   const user = await c.env.DB.prepare(
     "SELECT id, email, name, role, unit_id, permissions, aktif FROM users WHERE id = ?"
-  ).bind(payload.sub).first();
+  ).bind(ses.user_id).first();
   if (!user) return c.json({ error: "Akun tidak ditemukan" }, 401);
   if (user.aktif === 0) return c.json({ error: "Akun dinonaktifkan" }, 403);
   c.set("user", user);
@@ -274,7 +328,7 @@ function cekBalance(b) {
 app.get("/api/health", (c) => c.json({ ok: true, service: "hr30-aw3", time: new Date().toISOString() }));
 
 // LOGIN — terima {email,password} (frontend) atau {identifier,password} (lama).
-// Peran dibaca dari akun, BUKAN dipilih user.
+// Peran dibaca dari akun, BUKAN dipilih user. Lockout per-akun + audit gagal.
 app.post("/api/login", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const identifier = body.identifier || body.email;
@@ -286,26 +340,58 @@ app.post("/api/login", async (c) => {
 
   const id = String(identifier).trim().toLowerCase();
   let user = await c.env.DB.prepare(
-    "SELECT id, email, name, role, unit_id, password_hash, aktif FROM users WHERE lower(email) = ?"
+    "SELECT id, email, name, role, unit_id, password_hash, aktif, failed_attempts, locked_until FROM users WHERE lower(email) = ?"
   ).bind(id).first();
   if (!user) {
     user = await c.env.DB.prepare(
-      `SELECT u.id, u.email, u.name, u.role, u.unit_id, u.password_hash, u.aktif
+      `SELECT u.id, u.email, u.name, u.role, u.unit_id, u.password_hash, u.aktif, u.failed_attempts, u.locked_until
        FROM employees e JOIN users u ON u.id = e.user_id WHERE e.nip = ?`
     ).bind(id).first();
   }
+  const catatGagal = async (userId, alasan) => {
+    await c.env.DB.prepare(
+      "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
+    ).bind(userId || null, "login_gagal", "users", 0, JSON.stringify({ identifier: id, alasan }), ip).run().catch(() => {});
+  };
+  // Akun terkunci sementara?
+  if (user?.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+    await catatGagal(user.id, "terkunci");
+    return c.json({ error: "Terlalu banyak percobaan. Coba lagi beberapa menit." }, 429);
+  }
   if (!user || !(await verifyPassword(password, user.password_hash))) {
+    if (user) {
+      const fa = Number(user.failed_attempts || 0) + 1;
+      const lock = fa >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+      await c.env.DB.prepare("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?")
+        .bind(fa, lock, user.id).run().catch(() => {});
+    }
+    await catatGagal(user?.id, "sandi_salah");
     return c.json({ error: "Email atau kata sandi salah" }, 401);
   }
-  if (user.aktif === 0) return c.json({ error: "Akun dinonaktifkan" }, 403);
+  if (user.aktif === 0) {
+    await catatGagal(user.id, "nonaktif");
+    return c.json({ error: "Akun dinonaktifkan" }, 403);
+  }
+  // Sukses → reset penghitung, lalu buat sesi server-side.
+  await c.env.DB.prepare("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?").bind(user.id).run();
   const exp = Date.now() + SESSION_HOURS * 3600 * 1000;
   const token = await signToken({ sub: user.id, role: user.role, exp }, secretOf(c.env));
-  const secure = (process.env.COOKIE_SECURE || "") === "1" ? "; Secure" : "";
+  await c.env.DB.prepare(
+    "INSERT INTO sessions (token_hash, user_id, expires_at, ip, user_agent) VALUES (?,?,?,?,?)"
+  ).bind(
+    await sha256hex(token), user.id, new Date(exp).toISOString(),
+    ip.slice(0, 64), (c.req.header("User-Agent") || "").slice(0, 255)
+  ).run();
+  const secure = SECURE_COOKIE ? "; Secure" : "";
   c.header("Set-Cookie", `${COOKIE}=${token}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${SESSION_HOURS * 3600}`);
   return c.json({ id: user.id, name: user.name, email: user.email, role: user.role, unit_id: user.unit_id });
 });
 
-app.post("/api/logout", (c) => {
+app.post("/api/logout", async (c) => {
+  const token = getCookie(c.req, COOKIE);
+  if (token) {
+    await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256hex(token)).run().catch(() => {});
+  }
   c.header("Set-Cookie", `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
   return c.json({ ok: true });
 });
@@ -394,15 +480,18 @@ app.post("/api/reset-password", async (c) => {
   const ip = clientIp(c);
   if (!loginAllowed(`rs:${ip}`)) return c.json({ error: "Terlalu banyak percobaan. Coba lagi 10 menit." }, 429);
   if (!token) return c.json({ error: "Token reset wajib" }, 400);
-  if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
   const row = await c.env.DB.prepare(
-    "SELECT token_hash, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ?"
+    "SELECT t.token_hash, t.user_id, t.expires_at, t.used_at, u.email FROM password_reset_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ?"
   ).bind(await sha256hex(token)).first();
   if (!row || row.used_at || new Date(row.expires_at).getTime() < Date.now()) {
     return c.json({ error: "Tautan tidak valid atau kedaluwarsa. Minta tautan baru di halaman Lupa Kata Sandi." }, 400);
   }
-  await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), row.user_id).run();
+  const gagalSandi = validasiSandi(password, row.email);
+  if (gagalSandi) return c.json({ error: gagalSandi }, 400);
+  await c.env.DB.prepare("UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?")
+    .bind(await hashPassword(password), row.user_id).run();
   await c.env.DB.prepare("DELETE FROM password_reset_tokens WHERE user_id = ?").bind(row.user_id).run();
+  await revokeSessions(c.env.DB, row.user_id); // semua sesi lama mati setelah reset
   return c.json({ ok: true });
 });
 
@@ -442,7 +531,8 @@ app.post("/api/users", auth, requirePerm("users.kelola"), async (c) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return c.json({ error: "Email tidak valid" }, 400);
   if (!name) return c.json({ error: "Nama wajib" }, 400);
   if (!["master_admin", "hr_cabang", "pegawai"].includes(role)) return c.json({ error: "Peran tidak dikenal" }, 400);
-  if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  const gagalSandi = validasiSandi(password, email);
+  if (gagalSandi) return c.json({ error: gagalSandi }, 400);
   const perms = asArray(b.permissions).filter((k) => PERM_KEYS.includes(k));
   const id = "u-" + Date.now().toString(36);
   try {
@@ -466,6 +556,7 @@ app.patch("/api/users/:id", auth, requirePerm("users.kelola"), async (c) => {
     return c.json({ error: "Tidak bisa menonaktifkan/menurunkan akun sendiri" }, 400);
   const sets = [];
   const args = [];
+  let gantiSandi = false;
   if (b.name !== undefined) { sets.push("name=?"); args.push(String(b.name).trim()); }
   if (b.role !== undefined) {
     if (!["master_admin", "hr_cabang", "pegawai"].includes(b.role)) return c.json({ error: "Peran tidak dikenal" }, 400);
@@ -478,13 +569,22 @@ app.patch("/api/users/:id", auth, requirePerm("users.kelola"), async (c) => {
   }
   if (b.aktif !== undefined) { sets.push("aktif=?"); args.push(b.aktif ? 1 : 0); }
   if (b.password !== undefined) {
-    if (String(b.password).length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+    const target = await c.env.DB.prepare("SELECT email FROM users WHERE id = ?").bind(id).first();
+    const gagalSandi = validasiSandi(String(b.password), target?.email);
+    if (gagalSandi) return c.json({ error: gagalSandi }, 400);
     sets.push("password_hash=?"); args.push(await hashPassword(String(b.password)));
+    gantiSandi = true;
   }
   if (!sets.length) return c.json({ error: "Tidak ada perubahan" }, 400);
   args.push(id);
   const r = await c.env.DB.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id=?`).bind(...args).run();
   if ((r.meta?.changes ?? 0) === 0) return c.json({ error: "Pengguna tidak ditemukan" }, 404);
+  if (gantiSandi) {
+    // Cabut sesi lama target; sesi admin sendiri dipertahankan bila ia ganti sandi sendiri.
+    const t = getCookie(c.req, COOKIE);
+    const keep = id === u.id && t ? await sha256hex(t) : null;
+    await revokeSessions(c.env.DB, id, keep);
+  }
   await c.env.DB.prepare(
     "INSERT INTO audit_logs (user_id, aksi, tabel, record_id, nilai_baru, ip) VALUES (?,?,?,?,?,?)"
   ).bind(u.id, "user_update", "users", 0, JSON.stringify({ id, ubah: sets }), clientIp(c)).run();
@@ -653,7 +753,7 @@ app.post("/api/employees/:id/buatkan-akun", auth, requirePerm("users.kelola"), a
   let password = String(b.password || "");
   let acak = false;
   if (!password) { password = sandiAcak(12); acak = true; }
-  if (password.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  if (!acak) { const g = validasiSandi(password, email); if (g) return c.json({ error: g }, 400); }
   const id = "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   try {
     await c.env.DB.prepare(
@@ -707,7 +807,7 @@ app.post("/api/employees/bulk-akun", auth, requirePerm("users.kelola"), async (c
   const role = b.role || "pegawai";
   if (!["master_admin", "hr_cabang", "pegawai"].includes(role)) return c.json({ error: "Peran tidak dikenal" }, 400);
   let passwordSama = String(b.password || "");
-  if (passwordSama && passwordSama.length < 8) return c.json({ error: "Kata sandi minimal 8 karakter" }, 400);
+  if (passwordSama) { const g = validasiSandi(passwordSama, null); if (g) return c.json({ error: g }, 400); }
   let cabFilter = typeof b.cabang === "string" && b.cabang ? b.cabang : null;
   if (u.role === "hr_cabang") {
     const milikId = await userCabangId(c.env.DB, u);
@@ -800,7 +900,8 @@ async function bulkResetSandi(c, u, rows) {
   const direset = [];
   for (const r of rows) {
     const sandi = sandiAcak(12);
-    await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(sandi), r.id).run();
+    await c.env.DB.prepare("UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?").bind(await hashPassword(sandi), r.id).run();
+    await revokeSessions(c.env.DB, r.id);
     direset.push({ nip: r.nip, nama: r.nama_gelar, email: r.email, sandi });
   }
   await c.env.DB.prepare(
@@ -2069,7 +2170,8 @@ app.post("/api/users/:id/undang", auth, requirePerm("users.kelola"), async (c) =
       return c.json({ error: `Gateway WA tak terjangkau: ${e.message}` }, 502);
     }
   }
-  await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(sandi), id).run();
+  await c.env.DB.prepare("UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?").bind(await hashPassword(sandi), id).run();
+  await revokeSessions(c.env.DB, id); // sesi lama mati saat sandi sementara diterbitkan
   await kirimNotif(c.env.DB, id, "Undangan aktivasi HRIS",
     `Undangan dikirim via ${via === "wa" ? "WhatsApp" : "email"} oleh ${u.name || "admin"}. Cek ${via === "wa" ? "WA" : "email"} Anda untuk sandi sementara.`);
   return c.json({ ok: true, via });

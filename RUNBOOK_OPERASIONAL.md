@@ -6,7 +6,9 @@
 
 - `hr30` (API Hono + serve `web/dist`, 127.0.0.1:3000) ← Caddy (HTTPS) ← browser
 - `hr30-db` (PostgreSQL 16, volume `./data/pg`)
-- Skema: baseline HR 2.0 → migrasi `001` (HR 3.0 inti) → `002` (NIP) → `003` (izin)
+- Skema: baseline HR 2.0 → migrasi `001` (HR 3.0 inti) → … → `012` (hardening auth:
+  tabel `sessions` + kolom `users.failed_attempts`/`locked_until`). `node migrate.js`
+  menerapkan semuanya (idempoten).
 
 ## 2. Deploy normal
 
@@ -30,9 +32,14 @@ pg_restore -d hr30_aw3_restore backup/hr30_aw3_TGL.dump
 
 - Kelola via UI `/pengguna` (butuh `users.kelola`).
 - **Kunci akun cepat** (tanpa UI): `UPDATE users SET aktif=0 WHERE email='...';`
+- **Cabut semua sesi (logout paksa)**: `DELETE FROM sessions WHERE user_id='...';`
+  (juga otomatis saat ganti/reset sandi). Sesi tersimpan di tabel `sessions`,
+  kedaluwarsa 8 jam.
+- **Buka lockout akun**: `UPDATE users SET failed_attempts=0, locked_until=NULL WHERE email='...';`
 - **Reset sandi darurat**: buat hash via UI `/pengguna` (kolom sandi baru),
   atau bila terkunci total: `node -e` memakai `hashPassword` lalu UPDATE
-  `password_hash` langsung (catat di audit manual).
+  `password_hash` langsung (catat di audit manual). Sandi baru wajib ≥12
+  karakter, memuat huruf+angka, bukan sandi umum.
 - Akun demo/seed (`admin@…`, `hr.insani@…`, sandi `alwildan123`) **wajib
   diganti/dihapus sebelum go-live** (cek M5).
 
