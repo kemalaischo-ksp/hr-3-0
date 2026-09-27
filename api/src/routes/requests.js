@@ -39,6 +39,8 @@ export function requestsRoutes(pool) {
       cat: String(body.cat || "").slice(0, 80),
       prio: String(body.prio || "").slice(0, 20),
       desc: String(body.desc || "").slice(0, 2000),
+      strata: String(body.strata || "").slice(0, 20),
+      lampiran: String(body.lampiran || "").slice(0, 255),
       mulai: String(body.mulai || ""),
       selesai: String(body.selesai || ""),
       alasan: String(body.alasan || "").slice(0, 1000),
@@ -49,9 +51,9 @@ export function requestsRoutes(pool) {
       created_at: now(),
     };
     await pool.query(
-      `INSERT INTO requests (id, kind, emp_id, nama, unit, judul, cat, prio, body, mulai, selesai, alasan, changes, tgl, waktu, status, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-      [rec.id, rec.kind, empId, nama, unit, rec.judul, rec.cat, rec.prio, rec.desc, rec.mulai, rec.selesai, rec.alasan, rec.changes, rec.tgl, rec.waktu, rec.status, rec.created_at]
+      `INSERT INTO requests (id, kind, emp_id, nama, unit, judul, cat, prio, body, strata, lampiran, mulai, selesai, alasan, changes, tgl, waktu, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+      [rec.id, rec.kind, empId, nama, unit, rec.judul, rec.cat, rec.prio, rec.desc, rec.strata, rec.lampiran, rec.mulai, rec.selesai, rec.alasan, rec.changes, rec.tgl, rec.waktu, rec.status, rec.created_at]
     );
     await logActivity(pool, {
       aksi: kind === "tiket" ? `Tiket: ${rec.judul}` : kind === "profil" ? "Pengajuan Ubah Profil" : `Pengajuan ${rec.judul}`,

@@ -153,6 +153,12 @@ CREATE TABLE IF NOT EXISTS recruit_candidates (
   interview     TEXT,                   -- Lanjut|Hold|Batal
   interview_note TEXT,
   interview_tgl TEXT,
+  interview_by  TEXT,
+  interview_log JSONB,                  -- [{tgl,hasil,note,by}]
+  pantuhir_note TEXT,
+  estimasi      TEXT,
+  estimasi_aktif TEXT,
+  estimasi_note TEXT,
   aktivasi      TEXT NOT NULL DEFAULT '',   -- '' | diajukan | approved
   tgl_ajuan     TEXT,
   created_by    TEXT,
@@ -160,6 +166,18 @@ CREATE TABLE IF NOT EXISTS recruit_candidates (
 );
 CREATE INDEX IF NOT EXISTS idx_recruit_status ON recruit_candidates(status);
 CREATE INDEX IF NOT EXISTS idx_recruit_aktivasi ON recruit_candidates(aktivasi);
+
+CREATE TABLE IF NOT EXISTS recruit_log (
+  id            BIGSERIAL PRIMARY KEY,
+  candidate_id  TEXT,
+  tgl           TEXT,
+  aksi          TEXT NOT NULL,
+  note          TEXT,
+  by_user       TEXT,
+  created_at    BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recruit_log_cand ON recruit_log(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_recruit_log_ts ON recruit_log(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS requests (
   id         TEXT PRIMARY KEY,           -- REQ/TKT/PRF + timestamp
@@ -171,6 +189,8 @@ CREATE TABLE IF NOT EXISTS requests (
   cat        TEXT,
   prio       TEXT,
   body       TEXT,
+  strata     TEXT,
+  lampiran   TEXT,
   mulai      TEXT,
   selesai    TEXT,
   alasan     TEXT,

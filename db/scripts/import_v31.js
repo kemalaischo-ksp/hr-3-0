@@ -74,6 +74,7 @@ async function insertRecruit(pool, rows) {
     "thp_bersih", "tk", "thr", "konfirmasi", "nego", "berita_acara", "created_at",
   ];
   const placeholders = cols.map((_, i) => "$" + (i + 1)).join(",");
+  const conflictSet = cols.filter((c) => c !== "id").map((c) => `${c}=EXCLUDED.${c}`).join(", ");
   const now = Date.now();
   const batch = 400;
   let n = 0;
@@ -88,7 +89,8 @@ async function insertRecruit(pool, rows) {
         int(c.thpBersih), int(c.tk), int(c.thr), str(c.konfirmasi), str(c.nego), str(c.beritaAcara), now
       );
     }
-    const sql = `INSERT INTO recruit_candidates (${cols.join(",")}) VALUES ${chunk.map((_, j) => `(${placeholders.replace(/\$(\d+)/g, (_, k) => "$" + (j * cols.length + +k))})`).join(",")}`;
+    // upsert: kandidat baru ditambahkan, data existing diperbarui (id acuan)
+    const sql = `INSERT INTO recruit_candidates (${cols.join(",")}) VALUES ${chunk.map((_, j) => `(${placeholders.replace(/\$(\d+)/g, (_, k) => "$" + (j * cols.length + +k))})`).join(",")} ON CONFLICT (id) DO UPDATE SET ${conflictSet}`;
     await pool.query(sql, values);
     n += chunk.length;
     console.log(`  kandidat ${n}/${rows.length}`);
@@ -113,15 +115,11 @@ try {
     await insertEmployees(pool, empRows);
   }
 
-  const recHave = (await pool.query("SELECT count(*)::int AS n FROM recruit_candidates")).rows[0].n;
-  if (recHave > 0) {
-    console.log(`recruit_candidates sudah terisi (${recHave}).`);
-  } else {
-    const text = await readFile(recPath, "utf8");
-    const recRows = parseJsVar(text, "RECRUIT_DATA").filter((r) => r && r.nama);
-    console.log(`Memproses ${recRows.length} kandidat dari ${recPath}`);
-    await insertRecruit(pool, recRows);
-  }
+  // kandidat: UPSERT selalu (data recruit.js diperbarui; id acuan tetap)
+  const text = await readFile(recPath, "utf8");
+  const recRows = parseJsVar(text, "RECRUIT_DATA").filter((r) => r && r.nama);
+  console.log(`Memproses ${recRows.length} kandidat dari ${recPath} (upsert)`);
+  await insertRecruit(pool, recRows);
 
   const summary = await pool.query(
     "SELECT (SELECT count(*) FROM employees) e, (SELECT count(*) FROM recruit_candidates) r, (SELECT count(*) FROM users) u"

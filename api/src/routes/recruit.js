@@ -14,8 +14,11 @@ const CAND_COLS = {
   gender: "gender", status: "status", pantuhir: "pantuhir", unit: "unit", cabangRaw: "cabang_raw",
   mapel: "mapel", s1: "s1", s2: "s2", review: "review", konfirmasi: "konfirmasi",
   nego: "nego", beritaAcara: "berita_acara", interview: "interview",
-  interviewNote: "interview_note", interviewTgl: "interview_tgl", aktivasi: "aktivasi", tglAjuan: "tgl_ajuan",
+  interviewNote: "interview_note", interviewTgl: "interview_tgl", interviewBy: "interview_by",
+  pantuhirNote: "pantuhir_note", estimasi: "estimasi", estimasiAktif: "estimasi_aktif", estimasiNote: "estimasi_note",
+  aktivasi: "aktivasi", tglAjuan: "tgl_ajuan",
 };
+const CAND_JSON = { interviewLog: "interview_log" };
 const CAND_MONEY = { pengajuan: "pengajuan", thpKotor: "thp_kotor", thpSet: "thp_set", thpBersih: "thp_bersih", tk: "tk", thr: "thr" };
 
 export function recruitRoutes(pool) {
@@ -76,6 +79,9 @@ export function recruitRoutes(pool) {
     const patch = {};
     for (const [camel, snake] of Object.entries(CAND_COLS)) {
       if (Object.prototype.hasOwnProperty.call(body, camel)) patch[snake] = body[camel];
+    }
+    for (const [camel, snake] of Object.entries(CAND_JSON)) {
+      if (Object.prototype.hasOwnProperty.call(body, camel)) patch[snake] = JSON.stringify(body[camel] || []);
     }
     for (const [camel, snake] of Object.entries(CAND_MONEY)) {
       if (Object.prototype.hasOwnProperty.call(body, camel)) patch[snake] = money(body[camel]);
@@ -155,6 +161,42 @@ export function recruitRoutes(pool) {
     await logActivity(pool, { aksi: "Aktivasi Disetujui → Karyawan", type: "rekrut", nama: cdd.nama, empId, unit: cdd.unit, ket: `NIP ${nip} · ${thp}`, by: user.nama });
     await logAudit(pool, { userId: user.id, username: user.username, aksi: "recruit_approve", rincian: id + " → " + empId });
     return c.json({ ok: true, empId, nip });
+  });
+
+  // ----- Log aktivitas rekrutmen (recLog) — mirror lintas user -----
+  app.get("/api/recruit/log", requireAuth(pool), async (c) => {
+    const user = c.get("user");
+    const perms = c.get("perms");
+    // staff_hr & atau role HR/master dapat lihat; karyawan tidak.
+    if (user.role === "karyawan" && !perms.has("recruitment.view")) return c.json({ error: "Akses ditolak." }, 403);
+    const res = await pool.query(
+      "SELECT rl.id, rl.candidate_id, rl.tgl, rl.aksi, rl.note, rl.by_user, rl.created_at, rc.nama, rc.unit FROM recruit_log rl LEFT JOIN recruit_candidates rc ON rc.id=rl.candidate_id ORDER BY rl.id DESC LIMIT 300"
+    );
+    return c.json(res.rows.map((r) => ({
+      ts: r.created_at, tgl: r.tgl, id: r.candidate_id, nama: r.nama || "", unit: r.unit || "",
+      aksi: r.aksi, note: r.note || "", by: r.by_user || "",
+    })));
+  });
+
+  app.post("/api/recruit/log", requireAuth(pool), async (c) => {
+    const user = c.get("user");
+    const body = await c.req.json().catch(() => ({}));
+    const cand = String(body.id || "");
+    if (cand) {
+      const cdd = (await pool.query("SELECT nama, unit FROM recruit_candidates WHERE id=$1", [cand])).rows[0];
+      if (cdd) {
+        await logActivity(pool, {
+          aksi: String(body.aksi || "Update Kandidat"),
+          type: "rekrut", nama: cdd.nama, empId: cand, unit: cdd.unit,
+          ket: String(body.note || ""), by: user.nama,
+        });
+      }
+    }
+    await pool.query(
+      "INSERT INTO recruit_log (candidate_id, tgl, aksi, note, by_user, created_at) VALUES ($1,$2,$3,$4,$5,$6)",
+      [cand || null, new Date().toISOString().slice(0, 10), String(body.aksi || "Update"), String(body.note || ""), user.nama, Date.now()]
+    );
+    return c.json({ ok: true });
   });
 
   return app;
