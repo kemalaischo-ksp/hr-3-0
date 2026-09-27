@@ -346,7 +346,15 @@
   @keyframes tlpulse{0%,100%{box-shadow:0 0 0 1px color-mix(in srgb,var(--bad) 45%,transparent),0 0 7px 0 color-mix(in srgb,var(--bad) 28%,transparent);}50%{box-shadow:0 0 0 1px color-mix(in srgb,var(--bad) 75%,transparent),0 0 16px 3px color-mix(in srgb,var(--bad) 55%,transparent);}}
   .tl-empty{padding:40px 20px; text-align:center; color:var(--ink-muted); font-size:12.5px; line-height:1.6;}
   .tl-resize-hint{position:absolute; right:8px; bottom:4px; font-size:10px; color:var(--ink-muted); pointer-events:none; z-index:25; opacity:.7;}
-  @media (prefers-reduced-motion: reduce){ .tl-bar::before{animation:none;} .tl-bar.overdue{animation:none;} }
+  /* badge live: menunjukkan timeline diperbarui real-time */
+  .tl-live{display:inline-flex; align-items:center; gap:7px; font-size:11px; color:var(--ink-3); white-space:nowrap;}
+  .tl-live i{width:8px; height:8px; border-radius:99px; background:var(--good); animation:livepulse 2s ease-in-out infinite; flex:0 0 8px;}
+  @keyframes livepulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .tl-live b{color:var(--ink-2); font-weight:600;}
+  /* tugas baru / terbaru diperbarui → flash janggao supaya tot kelihatan */
+  .tl-new{outline:2px dashed rgba(255,176,0,.85); outline-offset:1px; animation:tlnewflash 1.5s ease-in-out infinite;}
+  @keyframes tlnewflash{0%,100%{box-shadow:0 0 0 2px rgba(255,176,0,.6); filter:brightness(1.05);}50%{box-shadow:0 0 14px 3px rgba(255,176,0,.95); filter:brightness(1.15);}}
+  @media (prefers-reduced-motion: reduce){ .tl-bar::before{animation:none;} .tl-bar.overdue{animation:none;} .tl-new{animation:none;box-shadow:0 0 0 2px rgba(255,176,0,.8);} }
 
   .foot{display:flex; justify-content:space-between; align-items:center; padding:14px 2px 2px; font-size:11.5px; color:var(--ink-muted); flex-wrap:wrap; gap:8px;}
   #chart-svg text{font-family:'Inter',sans-serif;}
@@ -626,6 +634,7 @@
               <span><i style="background:var(--bad)"></i>Terlambat</span>
             </div>
             <div class="tl-controls">
+              <span class="tl-live"><i></i>Live · diperbarui <b id="tlUpdated">—</b></span>
               <div class="tl-zoom" id="tlZoom"><button data-px="6">Padat</button><button class="active" data-px="12">Normal</button><button data-px="26">Renggang</button></div>
               <div class="tl-stepper"><button id="tlMinus" title="Perkecil">−</button><span id="tlPxLabel">12 px/hari</span><button id="tlPlus" title="Perbesar">+</button></div>
               <button class="btn btn-sm btn-ghost" id="tlToday">Hari ini</button>
@@ -1741,12 +1750,14 @@ function renderTimeline(data){
     if(!end)end=start+2*DAYMS;
     if(end<start)end=start+DAYMS;
     const cu=(t.cuStatus||'').toLowerCase();
-    items.push({id:t.id,name:t.name,status:t.status,url:t.url,start,end,color:cmap[cu]||SC[t.status]||SC.todo});
+    items.push({id:t.id,name:t.name,status:t.status,url:t.url,start,end,color:cmap[cu]||SC[t.status]||SC.todo,created:Number(t.created||0),updated:Number(t.updated||0)});
   }
   if(!items.length){inner.style.width='';inner.innerHTML='<div class="tl-empty">'+(serverMode?'Belum ada tugas dengan tanggal (mulai / jatuh tempo) di ClickUp untuk ditampilkan di timeline.':'Timeline menampilkan jadwal tugas <b>live dari ClickUp</b>. Saat ini <b>mode pratinjau</b> — akan tampil otomatis begitu terhubung ke ClickUp.')+'</div>';return;}
   // rentang tanggal + padding
   let min=Math.min(...items.map(i=>i.start)), max=Math.max(...items.map(i=>i.end));
   min=Math.min(min,now); max=Math.max(max,now);
+  const lu=document.getElementById('tlUpdated');
+  if(lu){try{lu.textContent=new Date(data.generatedAt||now).toLocaleString('id-ID',{hour:'2-digit',minute:'2-digit'})+' · '+items.length+' tugas';}catch(_){}}
   const day0=new Date(min); day0.setHours(0,0,0,0); const start0=day0.getTime()-3*DAYMS;
   const endDay=new Date(max); endDay.setHours(0,0,0,0); const end0=endDay.getTime()+4*DAYMS;
   const totalDays=Math.max(1,Math.round((end0-start0)/DAYMS));
@@ -1784,10 +1795,11 @@ function renderTimeline(data){
   for(const it of items){
     const left=xOf(it.start), w=Math.max(14,xOf(it.end)-xOf(it.start));
     const top=it.lane*rowH+3;
+    const fresh=(it.created&&now-it.created < 6*3600e3); // tugas ditambah < 6 jam → flash
     const dd=new Date(it.end).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});
     const ds=new Date(it.start).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});
     const title=esc(it.name)+' — '+(stLbl[it.status]||'')+' · '+ds+' → '+dd;
-    bars+='<div class="tl-bar '+it.status+'" data-url="'+esc(it.url||'')+'" style="left:'+left+'px;top:'+top+'px;width:'+w+'px;background:'+it.color+';color:'+tlTextOn(it.color)+'" title="'+title+'"><span>'+esc(it.name)+'</span></div>';
+    bars+='<div class="tl-bar '+it.status+(fresh?' tl-new':'')+'" data-url="'+esc(it.url||'')+'" style="left:'+left+'px;top:'+top+'px;width:'+w+'px;background:'+it.color+';color:'+tlTextOn(it.color)+'" title="'+title+'"><span>'+esc(it.name)+'</span></div>';
   }
   const todayLeft=xOf(now);
   inner.style.width=width+'px';

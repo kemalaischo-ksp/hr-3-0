@@ -31,6 +31,7 @@ untuk proyek **KSP Landing Page / Dashboard Traffic Pekerjaan KSP**.
 | 17 | Update #3 (external): Tulis ke ClickUp — ubah status & buat tugas | ✅ Selesai | Merge `UPDATE/U#3/` + backport Progress/rate-limit/trust proxy |
 | 18 | Fitur baru: Bulk edit status (checklist), Rekap PDF/JPG, Timeline (Gantt) | ✅ Selesai | Draft dulu di `U_DRAFT_OUTPUT UPD/` → timpa `ksp-dashboard/` |
 | 19 | Harden keamanan backend: headers, rate-limit API, CSRF, body limit | ✅ Selesai | Draft → timpa → uji curl lulus |
+| 20 | Timeline: flash tugas baru + badge Live, fox darirame tugas TES BARU | ✅ Selesai | Draft → timpa → verifikasi |
 
 ---
 
