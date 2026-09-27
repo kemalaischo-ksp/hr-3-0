@@ -1226,26 +1226,26 @@ function printSlip(id){const e=DATA.find(x=>x.id==id)||state.payPick;const thp=e
 }
 
 /* ===== TICKETING ===== */
-function renderTicketing(){const cats=['Payroll','Data Karyawan','Presensi','Cuti/Izin','Fasilitas','Lainnya'];
- const titles=['Koreksi nominal gaji','Update rekening BSI','Presensi tidak tercatat','Pengajuan cuti belum diproses','Permintaan surat keterangan kerja','Perbaikan data NIK','Reset akun SIPRES','Klaim reimburse transport'];
- const lanes=[{k:'Baru',cls:'neg'},{k:'Diproses',cls:'warn'},{k:'Selesai',cls:'pos'}];
+function renderTicketing(){const lanes=[{k:'Baru',cls:'neg'},{k:'Diproses',cls:'warn'},{k:'Selesai',cls:'pos'}];
+ const tts=loadReq().filter(r=>r.kind==='tiket');
+ const cnt=st=>tts.filter(t=>t.status===st).length;
  const prioColor={'Tinggi':'var(--neg)','Sedang':'var(--warn)','Rendah':'var(--pos)'};
  return `
  <div class="grid tiles">
-   ${tile('Tiket Baru',tickets.filter(t=>t.lane==='Baru').length,{color:'var(--neg)',meta:'belum ditangani · klik filter',onclick:"tkFilter('Baru')"})}
-   ${tile('Sedang Diproses',tickets.filter(t=>t.lane==='Diproses').length,{color:'var(--warn)',meta:'klik filter',onclick:"tkFilter('Diproses')"})}
-   ${tile('Selesai',tickets.filter(t=>t.lane==='Selesai').length,{color:'var(--pos)',meta:'bulan ini · klik filter',onclick:"tkFilter('Selesai')"})}
-   ${tile('Total Tiket',tickets.length,{color:'var(--info)',meta:cats.length+' kategori · tampilkan semua',onclick:"tkFilter('')"})}
+   ${tile('Tiket Baru',cnt('Baru'),{color:'var(--neg)',meta:'belum ditangani · klik filter',onclick:"tkFilter('Baru')"})}
+   ${tile('Sedang Diproses',cnt('Diproses'),{color:'var(--warn)',meta:'klik filter',onclick:"tkFilter('Diproses')"})}
+   ${tile('Selesai',cnt('Selesai'),{color:'var(--pos)',meta:'total terselesaikan',onclick:"tkFilter('Selesai')"})}
+   ${tile('Total Tiket',tts.length,{color:'var(--info)',meta:'dari portal karyawan',onclick:"tkFilter('')"})}
  </div>
  ${state.tkFilter?`<div style="margin-top:6px"><span class="pill info">Filter papan: ${esc(state.tkFilter)} <span style="cursor:pointer;font-weight:800" onclick="tkFilter('')">×</span></span></div>`:''}
- ${(()=>{const rq=loadReq().filter(r=>r.kind==='tiket');if(!rq.length)return '';
+ ${(()=>{const rq=tts;if(!rq.length)return '';
    return `<div class="sec-h"><h2>Tiket Masuk dari Karyawan</h2><span class="hint">${rq.length} · real-time dari helpdesk portal</span></div>
    <div class="tbl-wrap"><table><thead><tr><th>Masuk</th><th>Dari</th><th>Kategori</th><th>Judul</th><th>Prioritas</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rq.map(r=>`<tr onclick="openTiket('${r.id}')" style="cursor:pointer"><td style="white-space:nowrap"><b style="font-size:11.5px">${esc(r.tgl)}</b><div class="sm" style="font-size:10.5px;color:var(--ink-3)">${esc((r.waktu||'').split(', ')[1]||'')}</div></td><td><b>${esc(r.nama.split(',')[0])}</b> <span class="sm" style="color:var(--ink-3);font-size:11px">${esc(r.unit||'')}</span></td><td>${esc(r.cat||'')}</td><td>${esc(r.judul)}</td><td>${esc(r.prio||'')}</td><td><span class="pill ${r.status==='Selesai'?'pos':r.status==='Diproses'?'warn':'neg'}"><span class="d" style="background:currentColor"></span>${esc(r.status)}</span></td><td onclick="event.stopPropagation()"><button class="btn ghost" style="padding:4px 9px;font-size:11px" onclick="decideTiket('${r.id}','Diproses')">Proses</button> <button class="btn ghost" style="padding:4px 9px;font-size:11px" onclick="decideTiket('${r.id}','Selesai')">Selesai</button></td></tr>`).join('')}</tbody></table></div>`;})()}
- <div class="sec-h"><h2>Papan Tiket (contoh)</h2><span class="hint">helpdesk SDM</span></div>
+ <div class="sec-h"><h2>Papan Tiket</h2><span class="hint">helpdesk SDM</span></div>
  <div class="grid tk-board" style="grid-template-columns:repeat(3,1fr)">
-   ${lanes.filter(ln=>!state.tkFilter||ln.k===state.tkFilter).map(ln=>{const items=tickets.filter(t=>t.lane===ln.k);
+   ${lanes.filter(ln=>!state.tkFilter||ln.k===state.tkFilter).map(ln=>{const items=tts.filter(t=>t.status===ln.k);
      return `<div class="tk-lane"><div class="tk-lane-h"><span class="pill ${ln.cls}"><span class="d" style="background:currentColor"></span>${ln.k}</span><span class="c tnum">${items.length}</span></div>
-     ${items.map(t=>`<div class="tk"><div class="id">${t.id} · ${t.cat} · ${esc(t.tgl)} ${t.jam}</div><div class="ti">${t.ti}</div><div class="ft"><span class="prio" style="background:${prioColor[t.prio]}"></span>${t.prio} · ${esc(t.e.nama.split(',')[0])} · ${esc(t.e.unit)}</div></div>`).join('')||'<div class="empty" style="padding:18px;font-size:12px">Kosong</div>'}</div>`;}).join('')}
+     ${items.map(t=>`<div class="tk" style="cursor:pointer" onclick="openTiket('${t.id}')"><div class="id">${t.id} · ${esc(t.cat||'')} · ${esc(t.tgl)} ${(t.waktu||'').split(', ')[1]||''}</div><div class="ti">${esc(t.judul)}</div><div class="ft"><span class="prio" style="background:${prioColor[t.prio]||'var(--ink-3)'}"></span>${esc(t.prio||'—')} · ${esc(t.nama.split(',')[0])} · ${esc(t.unit||'')}</div></div>`).join('')||'<div class="empty" style="padding:18px;font-size:12px">Kosong</div>'}</div>`;}).join('')}
  </div>`;}
 
 /* ===== NETWORK GRAPH (Obsidian-style) ===== */
@@ -1578,7 +1578,10 @@ async function changeMyPw(){const old=document.getElementById('pf_old').value,nw
   SESSION.mustChange=false;try{sessionStorage.setItem(SESS_KEY,JSON.stringify(SESSION))}catch(e){}
   document.getElementById('pf_old').value='';document.getElementById('pf_new').value='';document.getElementById('pf_conf').value='';
   toast('✓ Kata sandi berhasil diubah');
- }catch(err){toast(err.message,true);}}
+ }catch(err){
+  if(/sandi saat ini/i.test(err.message||''))toast('Sandi saat ini salah. Pastikan kolom "Kata Sandi Lama" Anda ketik manual (browser terkadang mengisi nilai lama) — coba hapus lalu ketik ulang.',true);
+  else toast(err.message,true);
+ }}
 
 /* ===================== EMPLOYEE LANDING ===================== */
 function renderMe(){const e=currentEmp();if(!e)return `<div class="empty">Data karyawan tidak ditemukan.</div>`;
