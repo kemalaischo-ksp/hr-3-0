@@ -13,3 +13,8 @@ api/data/
 api/backup/
 # Postgres runtime (docker volume bind)
 data/pg/
+# PII SDM — JANGAN commit ke GitHub (transfer ke VPS via rsync/scp saja).
+# data.js/recruit.js memuat NIK KTP, alamat, THP, rekening (1.659 + 239 baris).
+4. DATA/DB_KSP 27 SEP 2026.xlsx
+5. updatev3.1_SDM-ALWILDAN-deploy/data.js
+5. updatev3.1_SDM-ALWILDAN-deploy/recruit.js
