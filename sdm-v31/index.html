@@ -1555,9 +1555,9 @@ function renderProfile(){const s=SESSION;const emp=currentEmp();
    <div class="st"><div style="font-size:12px;opacity:.85">Username</div><div style="font-weight:800;font-size:16px">${esc(s.u)}</div></div></div>
  <div class="two-col" style="margin-top:16px">
    <div class="card panel"><div class="panel-h"><h3>${ic('lock')} Ganti Kata Sandi</h3></div>
-     <div class="field"><label>Kata Sandi Lama</label><div class="pw-wrap"><input id="pf_old" type="password" placeholder="••••••••"><button type="button" onclick="pwToggle('pf_old',this)">Lihat</button></div></div>
-     <div class="field" style="margin-top:10px"><label>Kata Sandi Baru</label><div class="pw-wrap"><input id="pf_new" type="password" placeholder="min. 8 karakter"><button type="button" onclick="pwToggle('pf_new',this)">Lihat</button></div><span class="hh" id="pf_meter">Kekuatan: —</span></div>
-     <div class="field" style="margin-top:10px"><label>Konfirmasi Kata Sandi Baru</label><input id="pf_conf" type="password" placeholder="ulangi kata sandi baru"></div>
+    <div class="field"><label>Kata Sandi Lama</label><div class="pw-wrap"><input id="pf_old" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" onclick="pwToggle('pf_old',this)">Lihat</button></div></div>
+    <div class="field" style="margin-top:10px"><label>Kata Sandi Baru</label><div class="pw-wrap"><input id="pf_new" type="password" autocomplete="new-password" placeholder="min. 8 karakter"><button type="button" onclick="pwToggle('pf_new',this)">Lihat</button></div><span class="hh" id="pf_meter">Kekuatan: —</span></div>
+    <div class="field" style="margin-top:10px"><label>Konfirmasi Kata Sandi Baru</label><input id="pf_conf" type="password" autocomplete="new-password" placeholder="ulangi kata sandi baru"></div>
      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn" onclick="changeMyPw()">${ic('lock')} Simpan Sandi Baru</button><button class="btn ghost" onclick="genMyPw()">Sarankan Sandi Kuat</button></div>
      <p class="hh" style="margin-top:8px">Gunakan minimal 8 karakter kombinasi huruf besar/kecil, angka & simbol.</p>
    </div>
