@@ -179,6 +179,14 @@ CREATE TABLE IF NOT EXISTS recruit_log (
 CREATE INDEX IF NOT EXISTS idx_recruit_log_cand ON recruit_log(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_recruit_log_ts ON recruit_log(created_at DESC);
 
+-- Migrasi nyaman utk DB existing: kolom baru ditambahkan bila blm ada (idempoten).
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS interview_by  TEXT;
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS interview_log JSONB;
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS pantuhir_note TEXT;
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS estimasi       TEXT;
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS estimasi_aktif TEXT;
+ALTER TABLE recruit_candidates ADD COLUMN IF NOT EXISTS estimasi_note  TEXT;
+
 CREATE TABLE IF NOT EXISTS requests (
   id         TEXT PRIMARY KEY,           -- REQ/TKT/PRF + timestamp
   kind       TEXT NOT NULL,              -- ajuan | tiket | profil
@@ -239,3 +247,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   ua       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);
+
+-- Migrasi nyaman utk requests existing (idempoten; kolom strata/lampiran).
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS strata     TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS lampiran   TEXT;
