@@ -1,34 +1,34 @@
-// Migrasi HR 3.0 (mandiri — tak bergantung folder HR 2.0).
-//   node migrate.js            → baseline (bila DB kosong) + 001 s.d. 010
-//   node migrate.js --seed     → + seeds/aw3_pilot.sql (data uji, JANGAN di produksi)
-// Lokasi SQL: ../db (dev) atau $DB_DIR (Docker: /app/db).
+// Migrator HRIS v3.1 — menerapkan db/schema.sql (idempoten).
+// Jalankan dari api/:  node migrate.js      (up / inisialisasi schema)
+//    opsi:            --seed               (tambah seed admin)
+import { readFile } from "node:fs/promises";
 import pg from "pg";
-import { readFileSync } from "node:fs";
 
 const url = process.env.DATABASE_URL;
+const schemaPath = new URL("../db/schema.sql", import.meta.url);
+const doSeed = process.argv.includes("--seed");
+
 if (!url) {
-  console.error("DATABASE_URL belum diset. Lihat .env.example.");
+  console.error("FATAL: DATABASE_URL wajib diisi.");
   process.exit(1);
 }
-const withSeed = process.argv.includes("--seed");
-const DIR = process.env.DB_DIR || "../db";
-const pool = new pg.Pool({ connectionString: url });
 
+const client = new pg.Client({ connectionString: url });
+await client.connect();
 try {
-  const cek = await pool.query("SELECT to_regclass('public.users') AS t");
-  const files = [];
-  if (!cek.rows[0].t) files.push(`${DIR}/base/00_schema_dasar.sql`, `${DIR}/base/01_seed_dasar.sql`);
-  else console.log("Skema dasar sudah ada — lewati baseline.");
-  files.push(`${DIR}/migrations/001_hr30_pilot_aw3.sql`, `${DIR}/migrations/002_nip_sequence.sql`, `${DIR}/migrations/003_user_permissions.sql`, `${DIR}/migrations/004_modul_lanjutan.sql`, `${DIR}/migrations/005_koreksi_presensi.sql`, `${DIR}/migrations/006_gateway_undangan.sql`, `${DIR}/migrations/007_password_reset.sql`, `${DIR}/migrations/008_cabang_list.sql`, `${DIR}/migrations/009_units_per_cabang.sql`, `${DIR}/migrations/010_seed_atasan.sql`, `${DIR}/migrations/011_enrichment_sdm.sql`, `${DIR}/migrations/012_auth_hardening.sql`);
-  if (withSeed) files.push(`${DIR}/seeds/aw3_pilot.sql`);
-  for (const f of files) {
-    console.log("Terapkan", f);
-    await pool.query(readFileSync(new URL(f, import.meta.url), "utf8"));
+  const sql = await readFile(schemaPath, "utf8");
+  await client.query(sql);
+  console.log("Skema HRIS v3.1 diterapkan (idempotent).");
+
+  if (doSeed) {
+    const { seedAdmin, seedRolePerms } = await import("./seed.js");
+    await seedRolePerms(client);
+    await seedAdmin(client);
   }
-  console.log("Migrasi HR 3.0 selesai.");
+  console.log("Migrasi HR 3.1 selesai.");
 } catch (e) {
-  console.error("GAGAL:", e.message);
+  console.error("Migrasi gagal:", e.message);
   process.exitCode = 1;
 } finally {
-  await pool.end();
+  await client.end();
 }

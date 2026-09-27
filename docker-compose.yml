@@ -1,4 +1,4 @@
-# HRIS AL-WILDAN 3.0 pilot AW3 — PostgreSQL khusus + API (serve frontend juga).
+# HRIS SDM AL-WILDAN v3.1 — PostgreSQL khusus + API (serve frontend sdm-v31).
 # Pakai: cp .env.prod.example .env && docker compose up -d --build
 services:
   hr30-db:
@@ -6,13 +6,13 @@ services:
     container_name: hr30-db
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=hr30_aw3
+      - POSTGRES_DB=hr30_v31
       - POSTGRES_USER=hr30
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hr30 -d hr30_aw3"]
+      test: ["CMD-SHELL", "pg_isready -U hr30 -d hr30_v31"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,26 +21,16 @@ services:
     build: .
     container_name: hr30
     restart: unless-stopped
-    volumes:
-      - ./data/arsip:/app/data/arsip
     depends_on:
       hr30-db:
         condition: service_healthy
+    volumes:
+      - ./sdm-v31:/app/sdm-v31:ro
     ports:
       - "127.0.0.1:3000:3000"
     environment:
       - PORT=3000
-      - DATABASE_URL=postgres://hr30:${DB_PASSWORD}@hr30-db:5432/hr30_aw3
+      - DATABASE_URL=postgres://hr30:${DB_PASSWORD}@hr30-db:5432/hr30_v31
       - AUTH_SECRET=${AUTH_SECRET}
       - COOKIE_SECURE=1
       - CORS_ORIGIN=${CORS_ORIGIN:-}
-      - NEXTCLOUD_URL=${NEXTCLOUD_URL:-}
-      - NEXTCLOUD_USER=${NEXTCLOUD_USER:-}
-      - NEXTCLOUD_PASS=${NEXTCLOUD_PASS:-}
-      - NEXTCLOUD_GROUPFOLDER=${NEXTCLOUD_GROUPFOLDER:-Arsip SDM}
-      - AI_API_URL=${AI_API_URL:-}
-      - AI_API_KEY=${AI_API_KEY:-}
-      - AI_MODEL=${AI_MODEL:-}
-      - RESEND_API_KEY=${RESEND_API_KEY:-}
-      - RESEND_FROM=${RESEND_FROM:-}
-      - APP_URL=${APP_URL:-}
