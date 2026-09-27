@@ -6,7 +6,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPool } from "../../api/src/db.js";
+import { createPool } from "../../src/db.js";
 
 const url = process.env.DATABASE_URL;
 if (!url) { console.error("FATAL: DATABASE_URL wajib diisi."); process.exit(1); }

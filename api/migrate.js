@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 
 const url = process.env.DATABASE_URL;
-const schemaPath = new URL("../db/schema.sql", import.meta.url);
+const schemaPath = new URL("./db/schema.sql", import.meta.url);
 const doSeed = process.argv.includes("--seed");
 
 if (!url) {

@@ -238,9 +238,7 @@ tbody tr:last-child td{border-bottom:0}
 .login-body .field{margin-bottom:14px}
 .login-body .btn{width:100%;justify-content:center;padding:12px}
 .login-err{background:var(--neg-bg);color:var(--neg);border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:600;margin-bottom:14px;display:flex;gap:8px;align-items:center}
-.login-demo{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);line-height:1.7}
-.login-demo b{color:var(--ink-2)}
-.login-demo code{background:var(--surface-3);padding:1px 6px;border-radius:5px;font-size:11px;cursor:pointer}
+
 .pw-wrap{position:relative}
 .pw-wrap button{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:11px}
 /* employee landing */
@@ -686,7 +684,7 @@ function pyramid(rows,leftLbl,rightLbl,lc,rc){const mx=Math.max(...rows.flatMap(
    </div>`).join('')}
  </div>`;}
 
-function devBanner(txt){return `<div class="dev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg><div><b>Data contoh (development).</b> ${txt}</div></div>`;}
+
 
 /* ===== DASHBOARD ===== */
 function renderDashboard(){
@@ -1088,7 +1086,7 @@ function renderAttendance(){let hadir=0,terlambat=0,izin=0,alpha=0;
  // 7-day trend demo
  const days=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];const trend=days.map((d,i)=>Math.round(TOTAL*(0.80+seed('d'+i)*0.12)));
  const today=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
- return `${devBanner('Status presensi ini simulasi untuk pratinjau. Nantinya terhubung ke SIPRES (geofence + foto) yang sudah Ustadz bangun.')}
+ return `
  <div class="grid tiles">
    ${tile('Hadir',fmtID.format(hadir),{color:'var(--pos)',meta:(hadir/TOTAL*100).toFixed(1)+'% dari '+TOTAL})}
    ${tile('Terlambat',fmtID.format(terlambat),{color:'var(--warn)',meta:(terlambat/TOTAL*100).toFixed(1)+'%'})}
@@ -1119,7 +1117,7 @@ function renderLeave(){const types=['Cuti Tahunan','Izin Sakit','Cuti Menikah','
  const pending=reqs.filter(r=>r.st==='Menunggu').length,approved=reqs.filter(r=>r.st==='Disetujui').length;
  const stCls={'Menunggu':'warn','Disetujui':'pos','Ditolak':'neg'};
  const byType=types.map(t=>[t,reqs.filter(r=>r.t===t).length]);
- return `${devBanner('Pengajuan cuti/izin ini contoh. Alur persetujuan (karyawan → atasan → HR) akan mengikuti struktur approval holding.')}
+ return `
  <div class="grid tiles">
    ${tile('Menunggu Persetujuan',pending,{color:'var(--warn)',meta:'perlu tindakan'})}
    ${tile('Disetujui bulan ini',approved,{color:'var(--pos)'})}
@@ -1231,13 +1229,8 @@ function printSlip(id){const e=DATA.find(x=>x.id==id)||state.payPick;const thp=e
 function renderTicketing(){const cats=['Payroll','Data Karyawan','Presensi','Cuti/Izin','Fasilitas','Lainnya'];
  const titles=['Koreksi nominal gaji','Update rekening BSI','Presensi tidak tercatat','Pengajuan cuti belum diproses','Permintaan surat keterangan kerja','Perbaikan data NIK','Reset akun SIPRES','Klaim reimburse transport'];
  const lanes=[{k:'Baru',cls:'neg'},{k:'Diproses',cls:'warn'},{k:'Selesai',cls:'pos'}];
- const tickets=DATA.slice(20,44).map((e,i)=>{const s=seed(e.id+'tk');const lane=s<0.3?'Baru':(s<0.7?'Diproses':'Selesai');
-   const prio=s<0.2?'Tinggi':(s<0.6?'Sedang':'Rendah');const cat=cats[Math.floor(seed(e.id+'c')*cats.length)];
-   const ti=titles[Math.floor(seed(e.id+'ti')*titles.length)];const d=new Date();d.setDate(d.getDate()-Math.floor(seed(e.id+'dt')*20));const tgl=d.toISOString().slice(0,10);const jam=String(8+Math.floor(seed(e.id+'j')*9)).padStart(2,'0')+':'+String(Math.floor(seed(e.id+'mn')*60)).padStart(2,'0');
-   return {e,lane,prio,cat,ti,id:'TKT-'+String(1000+i),tgl,jam};});
- window._demoTickets=tickets;
  const prioColor={'Tinggi':'var(--neg)','Sedang':'var(--warn)','Rendah':'var(--pos)'};
- return `${devBanner('Tiket contoh untuk memperlihatkan alur layanan SDM (helpdesk). Karyawan mengajukan, HR menindaklanjuti hingga selesai.')}
+ return `
  <div class="grid tiles">
    ${tile('Tiket Baru',tickets.filter(t=>t.lane==='Baru').length,{color:'var(--neg)',meta:'belum ditangani · klik filter',onclick:"tkFilter('Baru')"})}
    ${tile('Sedang Diproses',tickets.filter(t=>t.lane==='Diproses').length,{color:'var(--warn)',meta:'klik filter',onclick:"tkFilter('Diproses')"})}
@@ -1252,7 +1245,7 @@ function renderTicketing(){const cats=['Payroll','Data Karyawan','Presensi','Cut
  <div class="grid tk-board" style="grid-template-columns:repeat(3,1fr)">
    ${lanes.filter(ln=>!state.tkFilter||ln.k===state.tkFilter).map(ln=>{const items=tickets.filter(t=>t.lane===ln.k);
      return `<div class="tk-lane"><div class="tk-lane-h"><span class="pill ${ln.cls}"><span class="d" style="background:currentColor"></span>${ln.k}</span><span class="c tnum">${items.length}</span></div>
-     ${items.map(t=>`<div class="tk" style="cursor:pointer" onclick="openDemoTiket('${t.id}')"><div class="id">${t.id} · ${t.cat} · ${esc(t.tgl)} ${t.jam}</div><div class="ti">${t.ti}</div><div class="ft"><span class="prio" style="background:${prioColor[t.prio]}"></span>${t.prio} · ${esc(t.e.nama.split(',')[0])} · ${esc(t.e.unit)}</div></div>`).join('')||'<div class="empty" style="padding:18px;font-size:12px">Kosong</div>'}</div>`;}).join('')}
+     ${items.map(t=>`<div class="tk"><div class="id">${t.id} · ${t.cat} · ${esc(t.tgl)} ${t.jam}</div><div class="ti">${t.ti}</div><div class="ft"><span class="prio" style="background:${prioColor[t.prio]}"></span>${t.prio} · ${esc(t.e.nama.split(',')[0])} · ${esc(t.e.unit)}</div></div>`).join('')||'<div class="empty" style="padding:18px;font-size:12px">Kosong</div>'}</div>`;}).join('')}
  </div>`;}
 
 /* ===== NETWORK GRAPH (Obsidian-style) ===== */
@@ -1534,10 +1527,8 @@ function renderLogin(err){
      <div class="field"><label>Username / Email</label><input id="lg_u" autocomplete="username" placeholder="username atau email" required></div>
      <div class="field"><label>Kata Sandi</label><div class="pw-wrap"><input id="lg_p" type="password" autocomplete="current-password" placeholder="••••••••" required><button type="button" onclick="const p=document.getElementById('lg_p');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Lihat':'Tutup'">Lihat</button></div></div>
      <button class="btn" type="submit">${ic('lock')} Masuk</button>
-     <div class="login-demo"><b>Akun demo:</b><br>Admin Holding → <code onclick="fillLogin('admin','alwildan2026')">admin / alwildan2026</code><br>Karyawan → username = <b>NIP</b> (dibuat di panel Akun), sandi awal <code>aw2026</code>. Buat akun massal dulu di menu Manajemen Akun untuk mendapatkan NIP tiap karyawan.</div>
    </form></div></div>`;
 }
-function fillLogin(u,p){document.getElementById('lg_u').value=u;document.getElementById('lg_p').value=p;}
 function lockInfo(){try{return JSON.parse(sessionStorage.getItem('sdm-lock'))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
 function setLock(o){try{sessionStorage.setItem('sdm-lock',JSON.stringify(o))}catch(e){}}
 async function doLogin(ev){ev.preventDefault();
@@ -1707,7 +1698,6 @@ function tiketModal(o){const kv=(l,v)=>`<div class="k"><div class="l">${l}</div>
    ${(o._real&&can('ticketing.respond'))?`<div style="padding:0 18px 14px;display:flex;gap:10px"><button class="btn" onclick="decideTiket('${o.id}','Diproses');closeModal()">Proses</button><button class="btn ghost" onclick="decideTiket('${o.id}','Selesai');closeModal()">Tandai Selesai</button></div>`:'<div style="height:8px"></div>'}
  </div></div>`;const el=document.createElement('div');el.id='modalRoot';el.innerHTML=html;document.body.appendChild(el);document.body.style.overflow='hidden';}
 function openTiket(id){const r=loadReq().find(x=>x.id===id);if(r)tiketModal(Object.assign({_real:true},r));}
-function openDemoTiket(id){const t=(window._demoTickets||[]).find(x=>x.id===id);if(t)tiketModal({id:t.id,judul:t.ti,cat:t.cat,nama:t.e.nama,unit:t.e.unit,tgl:t.tgl,jam:t.jam,prio:t.prio,status:t.lane,desc:'Tiket contoh helpdesk untuk kategori '+t.cat+'.'});}
 
 /* ===================== PANEL REKRUTMEN ===================== */
 let RECRUIT=[];
@@ -1734,7 +1724,7 @@ function renderRecruitment(){const list=recMerged();const canEdit=can('recruitme
  const stages=['Kandidat','Pantuhir','Set Gaji','Diajukan','Aktif','Batal'];
  const canIntv=can('recruitment.interview');const isStaff=SESSION&&SESSION.role==='staff_hr';
  const staffHero=isStaff?`<div class="emp-hero" style="margin-bottom:16px"><div class="avatar" style="background:rgba(255,255,255,.15);color:#fff;border:2px solid rgba(255,255,255,.3)">${initials(SESSION.nama)}</div><div><div class="nm">Selamat datang, ${esc(SESSION.nama.split(',')[0])}</div><div class="rl">Staff HR · Rekrutmen — pantau proses & tetapkan hasil interview akhir</div></div><div class="st"><div style="font-size:12px;opacity:.85">Menunggu Interview</div><div class="clock">${recMerged().filter(c=>recStage(c)!=='Aktif'&&recStage(c)!=='Batal'&&!c.interview).length}</div></div></div>`:'';
- return `${staffHero}${devBanner('Data rekrutmen dari file SET GAJI 2026 ('+RECRUIT.length+' kandidat). '+(canApprove?'Anda Master Admin: dapat menyetujui aktivasi.':canEdit?'Anda KADIV: dapat kelola, upload data & ajukan aktivasi (persetujuan oleh Master Admin).':'Anda Staff HR: memantau proses & update hasil interview akhir (Lanjut / Hold / Batal). Aktivasi final oleh Master Admin.'))}
+ return `${staffHero}
  ${canEdit?`<div class="card panel" style="margin-bottom:16px"><div class="panel-h"><h3>${ic('upload')} Pengajuan Data Kandidat Baru (CSV)</h3><span class="hint">tracking massal</span></div>
    <div class="two-col" style="grid-template-columns:1.3fr 1fr;gap:14px">
      <div class="dropzone" id="csvDz" onclick="document.getElementById('csvInput').click()">${ic('upload')}<div class="t">Klik atau seret file CSV kandidat</div><div class="s">Bisa langsung export sheet <b>SET GAJI 2026</b> ke CSV — header aslinya (EMAIL, NAMA, CABANG, PANTUHIR, PENGAJUAN, THP…) dikenali otomatis</div></div>
@@ -1828,7 +1818,7 @@ async function approveAktivasi(id){
 function renderAccounts(){const accs=loadAccts();
  const rows=accs.map(a=>`<tr><td><b>${esc(a.nama||'—')}</b></td><td><code onclick="copyText('${esc(a.nip||'')}')" title="klik salin NIP" style="cursor:pointer">${esc(a.nip||'—')}</code></td><td><code onclick="copyText('${esc(a.u)}')" title="klik salin username" style="cursor:pointer">${esc(a.u)}</code></td><td>${roleLabelFull(a.role)}</td><td>${esc(a.unit||'—')}</td><td style="white-space:nowrap"><button class="btn ghost" style="padding:4px 9px;font-size:11px" onclick="copyOneAcct('${esc(a.u)}')">Salin</button> ${a.role!=='master'?`<button class="btn ghost" style="padding:4px 9px;font-size:11px" onclick="resetPw('${esc(a.u)}')">Reset Sandi</button> <button class="btn ghost" style="padding:4px 9px;font-size:11px" onclick="delAcct('${esc(a.u)}')">Hapus</button>`:'<span style="color:var(--ink-3);font-size:11px">akun utama</span>'}</td></tr>`).join('');
  const noAcc=DATA.filter(e=>!accs.some(a=>a.empId===e.id));
-  return `${devBanner('Autentikasi server-side (sesi cookie httpOnly) & data tersimpan di database PostgreSQL. Sandi di-hash PBKDF2, izin di-enforce server.')}
+  return `
  <div class="grid tiles">
    ${tile('Total Akun',fmtID.format(accs.length),{color:'var(--c1)',meta:'aktif di sistem'})}
    ${tile('Belum Punya Akun',fmtID.format(noAcc.length),{color:'var(--warn)',meta:'dari '+TOTAL+' karyawan'})}
