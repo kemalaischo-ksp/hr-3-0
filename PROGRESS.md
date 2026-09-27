@@ -521,3 +521,14 @@ File yang berubah:
 
     - `ksp-dashboard/server/package-lock.json`
     - `ksp-dashboard/server/package.json`
+
+### Update otomatis — 27 Sep 2026 17:09
+
+Commit baru:
+
+    **`fafd186 feat(timeline): flash kuning utk tugas baru (<6h) + badge Live (diperbarui or/da lat, aric total tugas); fox untu melihat TES BARU saat bar dia dari ke u strana`**
+
+File yang berubah:
+
+    - `PROGRESS.md`
+    - `ksp-dashboard/public/index.html`
