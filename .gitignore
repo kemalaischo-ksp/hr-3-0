@@ -26,3 +26,7 @@ sdm-v31/recruit.js
 6. UPD FILE WEB/*/recruit.js
 # Screenshot lokal (bukan aset web)
 6. UPD FILE WEB/*/Screenshot*
+# PACKAGE UPDATE: folder rilis — PII & zip TIDAK ikut repo
+PACKAGE UPDATE/*/data.js
+PACKAGE UPDATE/*/recruit.js
+PACKAGE UPDATE/*.zip
