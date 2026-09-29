@@ -30,3 +30,6 @@ sdm-v31/recruit.js
 PACKAGE UPDATE/*/data.js
 PACKAGE UPDATE/*/recruit.js
 PACKAGE UPDATE/*.zip
+# 5.1_updatev3.2: paket rilis v3.2 — PII tidak ikut repo
+5.1_updatev3.2/data.js
+5.1_updatev3.2/recruit.js
