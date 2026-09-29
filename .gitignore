@@ -33,3 +33,5 @@ PACKAGE UPDATE/*.zip
 # 5.1_updatev3.2: paket rilis v3.2 — PII tidak ikut repo
 5.1_updatev3.2/data.js
 5.1_updatev3.2/recruit.js
+# Folder staging update — isinya diterapkan via ./sync-update.sh, tidak di-commit
+1. UPD/

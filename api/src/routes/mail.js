@@ -18,7 +18,9 @@ import { logActivity, logAudit } from "../audit.js";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL = "https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send";
-const GMAIL_SCOPE = "gmail.send";
+const GMAIL_LIST_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+// Kirim (gmail.send) + baca Kotak Masuk (gmail.readonly). Dipisah spasi.
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly";
 
 const b64url = (bytes) =>
   Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -249,6 +251,47 @@ export function mailRoutes(pool, { secure = false } = {}) {
     await logActivity(pool, { aksi: "Kirim Email via Gmail", type: "mail", nama: subj, unit: to, ket: "Terkirim ke " + to, by: user.nama });
     await logAudit(pool, { aksi: "mail_send", rincian: to + " | " + subj, userId: user.id, username: user.username, ip: c.get("ip") });
     return c.json({ ok: true });
+  });
+
+  // GET /api/mail/inbox → { connected, email, messages[] }  (butuh scope gmail.readonly)
+  app.get("/api/mail/inbox", requireAuth(pool), async (c) => {
+    if (!(await hasPermOrMaster(c))) return c.json({ error: "Akses ditolak." }, 403);
+    const g = await accessToken();
+    if (!g) return c.json({ connected: false, messages: [] });
+    const max = Math.min(25, parseInt(c.req.query("max") || "15", 10) || 15);
+    const listRes = await fetch(`${GMAIL_LIST_URL}?labelIds=INBOX&maxResults=${max}`, {
+      headers: { Authorization: "Bearer " + g.token },
+    });
+    if (!listRes.ok) {
+      let t = "";
+      try { t = (await listRes.text()).slice(0, 200); } catch {}
+      // 403 umumnya = scope gmail.readonly belum diberikan (perlu sambung ulang)
+      return c.json({ error: "Gmail HTTP " + listRes.status + (listRes.status === 403 ? " (scope baca inbox belum diizinkan — putuskan lalu sambungkan ulang)" : " " + t), messages: [] }, listRes.status === 403 ? 403 : 502);
+    }
+    const listJson = await listRes.json().catch(() => ({}));
+    const ids = (listJson.messages || []).map((m) => m.id).slice(0, max);
+    const messages = [];
+    for (const id of ids) {
+      const mr = await fetch(`${GMAIL_LIST_URL}/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, {
+        headers: { Authorization: "Bearer " + g.token },
+      });
+      if (!mr.ok) continue;
+      const mj = await mr.json().catch(() => ({}));
+      const h = {};
+      ((mj.payload && mj.payload.headers) || []).forEach((x) => { h[x.name.toLowerCase()] = x.value; });
+      const fromRaw = h.from || "";
+      const nameMatch = fromRaw.replace(/<[^>]*>/, "").replace(/"/g, "").trim();
+      const mailMatch = (fromRaw.match(/<([^>]+)>/) || [])[1] || fromRaw.trim();
+      messages.push({
+        id,
+        from: nameMatch || mailMatch,
+        fromMail: mailMatch,
+        subj: h.subject || "(tanpa subjek)",
+        date: h.date || "",
+        snippet: mj.snippet || "",
+      });
+    }
+    return c.json({ connected: true, email: g.email, messages });
   });
 
   // POST /api/mail/disconnect → hapus token
