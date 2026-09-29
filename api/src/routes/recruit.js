@@ -131,9 +131,9 @@ export function recruitRoutes(pool) {
     if (!cdd) return c.json({ error: "Kandidat tidak ditemukan." }, 404);
     if (action === "diajukan") {
       if (cdd.aktivasi === "approved") return c.json({ error: "Sudah aktif." }, 400);
-      await pool.query("UPDATE recruit_candidates SET aktivasi='diajukan' WHERE id=$1", [id]);
+      await pool.query("UPDATE recruit_candidates SET aktivasi='diajukan', tgl_ajuan=COALESCE(tgl_ajuan,$2) WHERE id=$1", [id, new Date().toISOString().slice(0, 10)]);
       await logActivity(pool, { aksi: "Ajukan Aktivasi Kandidat", type: "rekrut", nama: cdd.nama, unit: cdd.unit, ket: "Menunggu persetujuan Master Admin", by: user.nama });
-      return c.json(candToUI({ ...cdd, aktivasi: "diajukan" }));
+      return c.json(candToUI({ ...cdd, aktivasi: "diajukan", tgl_ajuan: cdd.tgl_ajuan || new Date().toISOString().slice(0, 10) }));
     }
     // approve → konversi jadi karyawan
     const thp = Number(cdd.thp_set || cdd.thp_bersih || cdd.pengajuan || 0);

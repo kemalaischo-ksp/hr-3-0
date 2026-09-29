@@ -251,3 +251,33 @@ CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);
 -- Migrasi nyaman utk requests existing (idempoten; kolom strata/lampiran).
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS strata     TEXT;
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS lampiran   TEXT;
+
+-- ============ GMAIL OAuth (server-side, aman) ============
+-- refresh token ENCRYPT (AES-256-GCM, key=HASH(AUTH_SECRET)); access token singa di server.
+CREATE TABLE IF NOT EXISTS mail_tokens (
+  id            INTEGER PRIMARY KEY,          -- selalu 1 (singleton)
+  email         TEXT NOT NULL DEFAULT '',
+  refresh_enc   TEXT NOT NULL DEFAULT '',      -- encrypted refresh token
+  access_token  TEXT NOT NULL DEFAULT '',     -- access token (server-side)
+  expires_at    BIGINT NOT NULL DEFAULT 0,    -- access token expiry (ms)
+  updated_at    BIGINT NOT NULL DEFAULT 0
+);
+
+-- state PKCE oauth (10 menit, one-time)
+CREATE TABLE IF NOT EXISTS mail_oauth_state (
+  state      TEXT PRIMARY KEY,
+  verifier   TEXT NOT NULL,
+  user_id    TEXT,
+  expires_at BIGINT NOT NULL DEFAULT 0
+);
+
+-- ============ CHAT internal HR (server-sync) ============
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id      BIGSERIAL PRIMARY KEY,
+  room    TEXT NOT NULL DEFAULT 'all',
+  role    TEXT NOT NULL,
+  by_user TEXT NOT NULL,
+  msg     TEXT NOT NULL,
+  ts      BIGINT NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_chat_room_ts ON chat_messages(room, ts);

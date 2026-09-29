@@ -325,19 +325,118 @@ tbody tr:last-child td{border-bottom:0}
 .net-hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:rgba(20,30,45,.55);pointer-events:none;background:rgba(255,255,255,.7);padding:3px 8px;border-radius:6px}
 .net-search{position:absolute;top:12px;left:12px}
 .net-search input{border:1px solid var(--line);background:rgba(255,255,255,.9);border-radius:8px;padding:7px 11px;font-size:12px;width:180px;font-family:inherit;color:var(--ink)}
-.hm{display:grid;gap:3px;min-width:520px}
-.hm-h{font-size:10px;color:var(--ink-3);text-align:center;font-weight:700;padding-bottom:2px}
-.hm-rl{font-size:11px;color:var(--ink-2);display:flex;align-items:center;font-weight:600;padding-right:6px}
-.hm-cell{aspect-ratio:1.6;border-radius:4px;display:grid;place-items:center;font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;transition:transform .1s}
-.hm-cell:hover{transform:scale(1.08);outline:2px solid var(--brand);outline-offset:-1px}
+.hm{display:grid;gap:0;min-width:560px}
+/* garis kisi: border tipis pada tiap sel + border luar */
+.hm-grid{border:1.5px solid #e3c4c4;border-radius:10px;overflow:hidden;background:#fff}
+.hm-grid>div{border-right:1px solid #efd9d9;border-bottom:1px solid #efd9d9}
+.hm-grid>div:last-child{border-right:0}
+.hm-corner{background:#fbeaea}
+.hm-h{font-size:12.5px;color:#7a1414;text-align:center;font-weight:800;padding:8px 2px;background:#fbeaea;letter-spacing:.3px}
+.hm-rl{font-size:12.5px;color:#5a1010;display:flex;align-items:center;font-weight:800;padding:0 10px;background:#fbeaea;letter-spacing:.2px}
+.hm-cell{position:relative;aspect-ratio:1.35;display:grid;place-items:center;font-variant-numeric:tabular-nums;transition:transform .12s;overflow:hidden}
+.hm-cell.hm-zero{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 5px,#f3f3f3 5px,#f3f3f3 10px)}
+.hm-bub{position:absolute;border-radius:50%;opacity:.92;transition:transform .18s}
+.hm-v{position:relative;z-index:1;font-weight:800}
+.hm-cell:hover{z-index:2;transform:scale(1.12);outline:2px solid var(--brand)}
+.hm-cell:hover .hm-bub{transform:scale(1.06)}
 .hm-scale{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:11px;color:var(--ink-2)}
-.hm-bar{width:120px;height:9px;border-radius:20px;background:linear-gradient(90deg,#fff0f0,#facdcd,#de5a5a,#c00000,#8c0000)}
+.hm-bar{width:120px;height:9px;border-radius:20px;background:linear-gradient(90deg,#ffeeee,#fac6c6,#d64242,#b80000,#780000)}
 .empty{text-align:center;padding:36px;color:var(--ink-3);font-size:12.5px}
 .two-col{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
 .three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .rec-hist-box{--rh-ink:#7a3b0a;background:linear-gradient(180deg,#fff8f0 0%,#fdf1e4 100%);border:1px solid #f2d9bd;border-radius:18px;padding:18px 18px 20px;margin:18px 0 6px;box-shadow:0 1px 2px rgba(180,83,9,.05)}
 .rec-hist-box .sec-h{margin:0 0 14px}
 .rec-hist-box>.grid.tiles .tile,.rec-hist-box .card.panel{background:rgba(255,255,255,.72);border-color:#f0ddc6}
+
+/* ========== APPS shared ========== */
+.mail-cfg>svg{width:17px;height:17px;flex:none;color:var(--info)}
+.mail-actionbar>svg,.cf-l svg{width:15px;height:15px;flex:none}
+.avatar svg{width:18px;height:18px}
+.cf-l{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.cf-l input,.cf-l textarea{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--ink);background:var(--surface)}
+.cf-l textarea{resize:vertical;line-height:1.55}
+.modal-foot{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface)}
+/* ========== EMAIL ========== */
+.mail-shell{display:grid;grid-template-columns:220px 320px 1fr;min-height:560px;overflow:hidden;padding:0}
+.mail-side{border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:3px;background:var(--surface-2,#fafbfc)}
+.mail-folder{display:flex;align-items:center;gap:10px;padding:9px 11px;border:0;background:transparent;border-radius:9px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;text-align:left;width:100%}
+.mail-folder svg{width:17px;height:17px}
+.mail-folder:hover{background:var(--hover,#eef2f7)}
+.mail-folder.on{background:var(--info-bg);color:var(--info)}
+.mf-badge{margin-left:auto;background:var(--neg);color:#fff;font-size:10.5px;font-weight:700;border-radius:10px;padding:1px 7px}
+.mail-tag-h{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:.5px;margin:14px 0 6px 4px}
+.mail-tag{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);padding:5px 4px}
+.mail-tag .dotc{width:9px;height:9px;border-radius:50%}
+.mail-list{border-right:1px solid var(--line);overflow-y:auto;max-height:640px}
+.mail-list-h{padding:14px 16px;font-weight:700;font-size:13px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:1}
+.mail-list-h span{color:var(--ink-3);font-weight:500;margin-left:6px}
+.mail-item{display:flex;gap:11px;padding:13px 15px;border-bottom:1px solid var(--line);cursor:pointer}
+.mail-item:hover{background:var(--hover,#f6f8fb)}
+.mail-item.on{background:var(--info-bg)}
+.mail-item.unread .mi-subj{font-weight:800}
+.mail-item.unread .mi-from{font-weight:800}
+.mi-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.mi-main{min-width:0;flex:1}
+.mi-top{display:flex;justify-content:space-between;gap:8px}
+.mi-from{font-size:12.5px;font-weight:600}
+.mi-date{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.mi-subj{font-size:12.5px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-tagdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+.mi-prev{font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mail-read{overflow-y:auto;max-height:640px;display:flex;flex-direction:column}
+.mr-h{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.mr-subj{font-size:17px;font-weight:800;margin-bottom:11px}
+.mr-meta{display:flex;gap:11px;align-items:center}
+.mail-actionbar{display:flex;gap:10px;align-items:center;padding:12px 20px;background:var(--warn-bg);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mr-body{padding:20px;font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap}
+/* ========== CHAT ========== */
+.chat-shell{display:grid;grid-template-columns:260px 1fr;min-height:560px;overflow:hidden;padding:0}
+.chat-side{border-right:1px solid var(--line);padding:12px;background:var(--surface-2,#fafbfc);overflow-y:auto}
+.chat-side-h{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:.5px;margin:4px 4px 10px}
+.chat-room{display:flex;gap:11px;align-items:center;padding:10px;border-radius:11px;cursor:pointer;margin-bottom:3px}
+.chat-room:hover{background:var(--hover,#eef2f7)}
+.chat-room.on{background:var(--info-bg)}
+.cr-av{width:40px;height:40px;border-radius:50%;background:var(--info-bg);color:var(--info);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.cr-av.grp{background:#1F4E7915;color:var(--info)}
+.cr-av svg{width:19px;height:19px}
+.cr-nm{font-size:13px;font-weight:700}
+.cr-sub{font-size:11px;color:var(--ink-3)}
+.chat-main{display:flex;flex-direction:column;min-height:560px}
+.chat-top{display:flex;gap:11px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.chat-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;max-height:520px;background:var(--surface-2,#fafbfc)}
+.cb-row{display:flex;gap:10px;max-width:74%}
+.cb-row.me{flex-direction:row-reverse;align-self:flex-end}
+.cb-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;flex-shrink:0}
+.cb-bub{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:9px 13px}
+.cb-row.me .cb-bub{background:var(--info);border-color:var(--info)}
+.cb-row.me .cb-by,.cb-row.me .cb-t,.cb-row.me .cb-ts{color:#fff}
+.cb-by{font-size:11px;font-weight:700;color:var(--info);margin-bottom:2px}
+.cb-t{font-size:13px;line-height:1.5;color:var(--ink)}
+.cb-ts{font-size:10px;color:var(--ink-3);margin-top:3px;text-align:right}
+.chat-input{display:flex;gap:9px;padding:13px 16px;border-top:1px solid var(--line)}
+.chat-input input{flex:1;border:1px solid var(--line);border-radius:22px;padding:11px 16px;font-size:13px;color:var(--ink);background:var(--surface)}
+/* ========== CALENDAR ========== */
+.cal-wrap{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+.cal-top{display:flex;align-items:center;gap:10px;padding:6px 4px 14px}
+.cal-title{font-size:17px;font-weight:800;min-width:150px;text-align:center}
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;padding:0 4px 12px;font-size:11.5px;color:var(--ink-2)}
+.cal-legend span{display:flex;align-items:center;gap:5px}
+.cal-legend i{width:11px;height:11px;border-radius:3px}
+.cal-grid-h{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.cal-grid-h div{text-align:center;font-size:11px;font-weight:700;color:var(--ink-3)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-cell{min-height:92px;border:1px solid var(--line);border-radius:9px;padding:5px;display:flex;flex-direction:column;gap:3px;background:var(--surface)}
+.cal-cell.out{background:transparent;border:0}
+.cal-cell.today{border-color:var(--info);box-shadow:inset 0 0 0 1px var(--info)}
+.cal-d{font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.cal-cell.today .cal-d{color:var(--info)}
+.cal-ev{font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.cal-more{font-size:9.5px;color:var(--ink-3);padding-left:3px}
+.ag-item{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:9px;background:var(--surface-2,#fafbfc);margin-bottom:7px}
+.ag-dt{font-size:11px;font-weight:800;color:var(--ink-2);white-space:nowrap;min-width:52px}
+.ag-t{font-size:12.5px;font-weight:600}
+.ag-sub{font-size:11px;color:var(--ink-3)}
+@media (max-width:1100px){.mail-shell{grid-template-columns:1fr}.mail-side{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.mail-list{border-right:0;border-bottom:1px solid var(--line);max-height:300px}.chat-shell{grid-template-columns:1fr}.chat-side{border-right:0;border-bottom:1px solid var(--line)}.cal-wrap{grid-template-columns:1fr}}
 
 @media (max-width:980px){
   .app{grid-template-columns:1fr}
@@ -448,6 +547,7 @@ tbody tr:last-child td{border-bottom:0}
 <div id="printArea"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="kaldik.js"></script>
 <script src="data.js"></script>
 <script src="recruit.js"></script>
 <script>
@@ -474,7 +574,14 @@ function ic(n){const p={
  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/>',
- userplus:'<circle cx="9" cy="8" r="4"/><path d="M3 21v-1a6 6 0 0 1 10.3-4.2"/><path d="M17 11v6M14 14h6"/>'};
+ userplus:'<circle cx="9" cy="8" r="4"/><path d="M3 21v-1a6 6 0 0 1 10.3-4.2"/><path d="M17 11v6M14 14h6"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+ chat:'<path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/>',
+ send:'<path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ star:'<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+ reply:'<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+ trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'};
  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(p[n]||'')+'</svg>';}
 
 /* ---------- data + helpers ---------- */
@@ -612,6 +719,9 @@ const VIEWS={
  payroll:{crumb:'Operasional',title:'Slip Gaji',sub:'Payroll & komponen gaji',render:renderPayroll},
  ticketing:{crumb:'Operasional',title:'Ticketing',sub:'Layanan & pengaduan SDM',render:renderTicketing},
  recruitment:{crumb:'Rekrutmen',title:'Panel Rekrutmen',sub:'Tracking kandidat, pantuhir, set gaji & aktivasi',render:renderRecruitment},
+ email:{crumb:'Apps',title:'Email · Inbox Holding',sub:'Gmail HR & aktivasi pengajuan via email',render:renderEmail},
+ chat:{crumb:'Apps',title:'Diskusi Tim HR',sub:'Chat Admin ⇄ Kadiv HR ⇄ Staff HR',render:renderChat},
+ calendar:{crumb:'Apps',title:'Calendar',sub:'Proses rekrutmen & kaldik AL-WILDAN',render:renderCalendar},
  accounts:{crumb:'Sistem',title:'Manajemen Akun',sub:'Buat akun & atur hak akses berlapis',render:renderAccounts},
  profile:{crumb:'Akun Saya',title:'Profil Saya',sub:'Info akun & ganti kata sandi',render:renderProfile},
  me:{crumb:'Portal Saya',title:'Portal Karyawan',sub:'Presensi, slip gaji, profil & layanan',render:renderMe},
@@ -677,16 +787,26 @@ function acLeave(id){const g=document.getElementById(id+'_cross');if(g)g.style.o
 
 /* heatmap: rowLabels, colLabels, matrix[r][c], color scale one-hue */
 function heatmap(rowLabels,colLabels,matrix,drill){let mx=1;matrix.forEach(r=>r.forEach(v=>{if(v>mx)mx=v;}));
- // gradasi merah: merah muda -> merah tua (standar warna AL-WILDAN)
- const redScale=t=>{const stops=[[255,240,240],[250,205,205],[240,150,150],[222,90,90],[192,0,0],[140,0,0]];const p=Math.max(0,Math.min(1,t))*(stops.length-1);const i=Math.floor(p),f=p-i;const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;};
- const cell=(v,ri,ci)=>{const t=v/mx;const bg=v===0?'var(--track)':redScale(0.12+t*0.88);
+ // gradasi merah sekuensial: merah muda -> merah tua/panas (standar warna AL-WILDAN)
+ const redScale=t=>{const stops=[[255,238,238],[250,198,198],[238,132,132],[214,66,66],[184,0,0],[120,0,0]];const p=Math.max(0,Math.min(1,t))*(stops.length-1);const i=Math.floor(p),f=p-i;const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;};
+ const cell=(v,ri,ci)=>{const t=v/mx;
    const clk=drill?` onclick="drillHeat('${drill}','${esc(rowLabels[ri])}','${esc(colLabels[ci])}')" style="cursor:pointer"`:'';
-   return `<div class="hm-cell hoverbar" data-tip="${esc(rowLabels[ri])} · ${esc(colLabels[ci])}: ${v} bergabung"${clk} style="background:${bg}">${v>0?`<span style="color:${t>0.42?'#fff':'#7a1414'}">${v}</span>`:''}</div>`;};
- return `<div style="overflow-x:auto"><div class="hm" style="grid-template-columns:70px repeat(${colLabels.length},minmax(30px,1fr))">
-   <div></div>${colLabels.map(c=>`<div class="hm-h">${esc(c)}</div>`).join('')}
+   if(v===0)return `<div class="hm-cell hm-zero"${clk}></div>`;
+   // font membesar mengikuti nilai (11px → 21px); warna teks makin gelap → putih saat panas
+   const fs=(11+t*10).toFixed(1);
+   const bub=redScale(0.20+t*0.80);               // warna bubble (isi)
+   const bsz=(34+t*54).toFixed(0);                 // diameter bubble % dari sel (34%→88%)
+   const glow=t>0.55?`box-shadow:0 0 ${(4+t*14).toFixed(0)}px ${redScale(0.55+t*0.45)}`:'';
+   const tint=v===0?'transparent':redScale(0.05+t*0.28); // tint sel latar
+   const txt=t>0.5?'#fff':'#6e0f0f';
+   return `<div class="hm-cell hoverbar" data-tip="${esc(rowLabels[ri])} · ${esc(colLabels[ci])}: ${v} bergabung"${clk} style="background:${tint}">
+     <span class="hm-bub" style="width:${bsz}%;height:${bsz}%;background:${bub};${glow}"></span>
+     <span class="hm-v" style="font-size:${fs}px;color:${txt}">${v}</span></div>`;};
+ return `<div style="overflow-x:auto"><div class="hm hm-grid" style="grid-template-columns:74px repeat(${colLabels.length},minmax(46px,1fr))">
+   <div class="hm-corner"></div>${colLabels.map(c=>`<div class="hm-h">${esc(c)}</div>`).join('')}
    ${rowLabels.map((rl,ri)=>`<div class="hm-rl">${esc(rl)}</div>`+matrix[ri].map((v,ci)=>cell(v,ri,ci)).join('')).join('')}
  </div>
- <div class="hm-scale"><span>0</span><div class="hm-bar"></div><span>${mx}</span><span style="color:var(--ink-3);margin-left:8px">karyawan bergabung</span></div></div>`;}
+ <div class="hm-scale"><span>0</span><div class="hm-bar"></div><span>${mx}</span><span style="color:var(--ink-3);margin-left:8px">karyawan bergabung · sel makin panas & besar = makin banyak</span></div></div>`;}
 function drillHeat(type,rowV,colV){/* row=unit, col=year */const list=DATA.filter(e=>e.unit===rowV&&String(e.thnAktif).trim()===colV);
  const rows=list.map(e=>`<tr onclick="drillOpen('${e.id}')" style="cursor:pointer"><td><div class="emp-cell">${avatar(e)}<div><div class="nm">${esc(e.nama)}</div><div class="sm">${esc(e.jabatan||'')}</div></div></div></td><td><span class="pill info">${esc(e.unit)}</span></td><td class="tnum">${esc(e.thnAktif)}</td><td class="tnum">${e.thp>0?rp(e.thp):'—'}</td></tr>`).join('');
  const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px"><div class="modal-h"><div><div class="nm">${esc(rowV)} · Bergabung ${esc(colV)}</div><div class="rl">${list.length} karyawan</div></div><button class="x" onclick="closeModal()">×</button></div><div class="tbl-wrap" style="border:0"><table><thead><tr><th>Karyawan</th><th>Unit</th><th>Tahun</th><th>THP</th></tr></thead><tbody>${rows||'<tr><td colspan=4><div class="empty">Tidak ada.</div></td></tr>'}</tbody></table></div></div></div>`;
@@ -1442,8 +1562,9 @@ function buildNav(){let nav;
    const utama=[];if(can('dashboard'))utama.push(['dashboard','grid','Dashboard HR']);if(can('analytics'))utama.push(['analytics','chart','Analitik SDM']);if(can('network'))utama.push(['network','share','Jaringan SDM']);if(can('employees.view'))utama.push(['employees','users','Data Karyawan']);if(can('employees.edit'))utama.push(['manage','plus','Tambah / Update SDM']);
    const op=[];if(can('attendance'))op.push(['attendance','clock','Presensi']);if(can('leave.view'))op.push(['leave','calendar','Cuti & Izin']);if(can('payroll'))op.push(['payroll','wallet','Slip Gaji']);if(can('ticketing.view'))op.push(['ticketing','ticket','Ticketing']);
    const rec=[];if(can('recruitment.view'))rec.push(['recruitment','userplus','Rekrutmen']);
+   const apps=[];if(can('apps.email'))apps.push(['email','mail','Email']);if(can('apps.chat'))apps.push(['chat','chat','Diskusi']);if(can('apps.calendar'))apps.push(['calendar','calendar','Calendar']);
    const sys=[];if(can('accounts'))sys.push(['accounts','lock','Manajemen Akun']);
-   nav=[];if(utama.length)nav.push(['Utama',utama]);if(op.length)nav.push(['Operasional',op]);if(rec.length)nav.push(['Rekrutmen',rec]);nav.push(['Akun',[['profile','user','Profil Saya']]]);if(sys.length)nav.push(['Sistem',sys]);
+   nav=[];if(utama.length)nav.push(['Utama',utama]);if(op.length)nav.push(['Operasional',op]);if(rec.length)nav.push(['Rekrutmen',rec]);if(apps.length)nav.push(['Apps',apps]);nav.push(['Akun',[['profile','user','Profil Saya']]]);if(sys.length)nav.push(['Sistem',sys]);
  }
  const foot=SESSION?`<div style="margin-top:10px;padding:10px 12px;border-top:1px solid var(--line)"><div style="font-size:11px;color:var(--ink-3)">Masuk sebagai</div><div style="font-size:12.5px;font-weight:700;margin:2px 0">${esc((SESSION.nama||'').split(',')[0])}</div><div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">${roleLabelFull(SESSION.role)}</div><button class="btn ghost" style="width:100%;justify-content:center;padding:8px;font-size:12px" onclick="logout()">${ic('lock')} Keluar</button></div>`:'';
  document.getElementById('nav').innerHTML=nav.map(([g,items])=>`<div class="grp">${g}</div>`+items.map(([v,i,l])=>`<button data-view="${v}" class="${v===state.view?'active':''}">${ic(i)}<span>${l}</span></button>`).join('')).join('')+foot;}
@@ -1466,7 +1587,7 @@ function paint(){if(!SESSION)return; // belum login, jangan render app
  if(RECNET){RECNET.stop=true;try{window.removeEventListener('mousemove',RECNET.mm);window.removeEventListener('mouseup',RECNET.mu);}catch(e){}RECNET=null;}
  // guard akses per role
  if(SESSION&&SESSION.role==='karyawan'&&state.view!=='me'&&state.view!=='profile')state.view='me';
- const need={dashboard:'dashboard',analytics:'analytics',network:'network',employees:'employees.view',manage:'employees.edit',attendance:'attendance',leave:'leave.view',payroll:'payroll',ticketing:'ticketing.view',recruitment:'recruitment.view',accounts:'accounts'};
+ const need={dashboard:'dashboard',analytics:'analytics',network:'network',employees:'employees.view',manage:'employees.edit',attendance:'attendance',leave:'leave.view',payroll:'payroll',ticketing:'ticketing.view',recruitment:'recruitment.view',email:'apps.email',chat:'apps.chat',calendar:'apps.calendar',accounts:'accounts'};
  if(SESSION&&SESSION.role!=='karyawan'&&need[state.view]&&!can(need[state.view]))state.view=firstAllowedView();
  if(!VIEWS[state.view])state.view=firstAllowedView();
  const v=VIEWS[state.view];document.getElementById('content').innerHTML=v.render();
@@ -1488,7 +1609,7 @@ function collectNotif(){if(!SESSION)return [];const out=[];const role=SESSION.ro
    reqs.filter(r=>r.kind==='tiket'&&r.status==='Baru').forEach(r=>out.push({ic:'ticket',col:'var(--neg)',t:'Tiket baru: '+r.judul,s:r.nama.split(',')[0]+' · '+r.tgl,go:()=>go('ticketing')}));
  }
  if(isAdmin){
-   recMerged().filter(c=>c.aktivasi==='diajukan').forEach(c=>out.push({ic:'userplus',col:'var(--warn)',t:'Aktivasi kandidat menunggu',s:c.nama.split(',')[0]+' · '+(c.unit||''),go:()=>go('recruitment')}));
+   recMerged().filter(c=>c.aktivasi==='diajukan').forEach(c=>out.push({ic:'mail',col:'var(--warn)',t:'Email: aktivasi kandidat menunggu',s:c.nama.split(',')[0]+' · '+(c.unit||''),go:()=>{state.mailFolder='inbox';state.mailSel='akt-'+c.id;go('email');}}));
  }
  if(isAdmin||isKadiv||isStaff){
    const need=recMerged().filter(c=>recStage(c)!=='Aktif'&&recStage(c)!=='Batal'&&!c.interview);
@@ -1552,13 +1673,16 @@ const PERMS=[
  {key:'recruitment.edit',label:'Edit Rekrutmen',desc:'Kelola kandidat, set gaji, ajukan aktivasi'},
  {key:'recruitment.interview',label:'Update Interview Akhir',desc:'Tetapkan hasil interview: Lanjut / Hold (nego) / Batal'},
  {key:'recruitment.approve',label:'Approve Aktivasi (Master)',desc:'Menyetujui aktivasi kandidat jadi karyawan'},
+ {key:'apps.email',label:'Apps · Email (Gmail)',desc:'Inbox Gmail Holding & aktivasi pengajuan via email (khusus Admin Pusat)'},
+ {key:'apps.chat',label:'Apps · Diskusi/Chat',desc:'Chat internal Admin ⇄ Kadiv HR ⇄ Staff HR'},
+ {key:'apps.calendar',label:'Apps · Calendar',desc:'Kalender proses rekrutmen & kaldik AL-WILDAN'},
  {key:'accounts',label:'Manajemen Akun & Hak Akses',desc:'Buat akun, atur role & izin berlapis'},
 ];
 // preset izin per role (bisa dikustom master admin)
 const ROLE_PRESET={
  master:PERMS.reduce((o,p)=>(o[p.key]=true,o),{}),
- kadiv_hr:{dashboard:1,analytics:1,network:1,'employees.view':1,attendance:1,'leave.view':1,payroll:1,'ticketing.view':1,'ticketing.respond':1,'recruitment.view':1,'recruitment.edit':1,'recruitment.interview':1,'recruitment.approve':0,'employees.edit':0,'leave.approve':0,accounts:0},
- staff_hr:{'recruitment.view':1,'recruitment.interview':1,'recruitment.edit':0,'dashboard':0},
+ kadiv_hr:{dashboard:1,analytics:1,network:1,'employees.view':1,attendance:1,'leave.view':1,payroll:1,'ticketing.view':1,'ticketing.respond':1,'recruitment.view':1,'recruitment.edit':1,'recruitment.interview':1,'recruitment.approve':0,'employees.edit':0,'leave.approve':0,'apps.email':0,'apps.chat':1,'apps.calendar':1,accounts:0},
+ staff_hr:{'recruitment.view':1,'recruitment.interview':1,'recruitment.edit':0,'dashboard':0,'apps.email':0,'apps.chat':1,'apps.calendar':1},
  karyawan:{},
 };
 function roleLabelFull(r){return {master:'Master Admin (Holding)',kadiv_hr:'KADIV HR',staff_hr:'Staff HR',karyawan:'Karyawan'}[r]||r;}
@@ -1629,7 +1753,8 @@ function bootApp(){const lr=document.getElementById('loginRoot');if(lr)lr.remove
  document.querySelector('.app').style.display='';document.getElementById('topbar')&&(document.getElementById('topbar').style.display='');
  // role-based nav & default view
  state.view=firstAllowedView();
- buildNav();paint();}
+ buildNav();paint();
+ setInterval(()=>{if(state.view==='chat'&&typeof chatPull==='function')chatPull();},5000);}
 
 /* ===================== PROFIL SAYA (ganti password) ===================== */
 function renderProfile(){const s=SESSION;const emp=currentEmp();
@@ -2037,13 +2162,277 @@ async function handleCSV(file){if(!file)return;const st=document.getElementById(
 document.addEventListener('dragover',e=>{const dz=document.getElementById('csvDz');if(dz){e.preventDefault();dz.classList.add('drag');}});
 document.addEventListener('drop',e=>{const dz=document.getElementById('csvDz');if(dz){e.preventDefault();dz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleCSV(f);}});
 function setGaji(id){const c=recMerged().find(x=>x.id===id);const v=prompt('THP Bersih (Set Gaji) untuk '+c.nama.split(',')[0]+':',c.thpSet||c.thpBersih||c.pengajuan||'');if(v===null)return;const n=parseInt(String(v).replace(/\D/g,''))||0;recSet(id,{thpSet:n});toast('✓ Gaji diset: '+rp(n));paint();}
-function ajukanAktivasi(id){recSet(id,{aktivasi:'diajukan'});const c=RECRUIT.find(x=>x.id===id);pushActivity({ts:Date.now(),tgl:new Date().toISOString().slice(0,10),aksi:'Ajukan Aktivasi Kandidat',type:'rekrut',col:'var(--warn)',nama:c.nama,id:'',unit:c.unit,ket:'Menunggu persetujuan Master Admin',by:(SESSION&&SESSION.nama)||'HR'});recLog(id,'Ajukan Aktivasi','Menunggu persetujuan Master Admin');toast('✓ Diajukan ke Master Admin');paint();}
+function ajukanAktivasi(id){recSet(id,{aktivasi:'diajukan',ajuanTgl:new Date().toISOString().slice(0,10)});const c=RECRUIT.find(x=>x.id===id);pushActivity({ts:Date.now(),tgl:new Date().toISOString().slice(0,10),aksi:'Ajukan Aktivasi Kandidat',type:'rekrut',col:'var(--warn)',nama:c.nama,id:'',unit:c.unit,ket:'Menunggu persetujuan Master Admin',by:(SESSION&&SESSION.nama)||'HR'});recLog(id,'Ajukan Aktivasi','Menunggu persetujuan Master Admin');toast('✓ Diajukan ke Master Admin');paint();}
 function approveAktivasi(id){const c=recMerged().find(x=>x.id===id);recSet(id,{aktivasi:'approved'});
  // konversi jadi karyawan di DATA
  const e=blankEmp();e.nama=c.nama;e.unit=c.unit;e.cabang=c.cabangRaw;e.jabatan=c.mapel?'Guru Mata Pelajaran':'Karyawan';e.posisi=e.jabatan;e.mapel=c.mapel;e.mapelGuru=c.mapel;e.thnAktif=String(NOW_YEAR);e.thp=c.thpSet||c.thpBersih||c.pengajuan||0;e.email=c.email;e.s1univ=c.s1;e.linkKesehatan=c.kesehatan;e.linkCV=c.cv;e.nip=genNIP(e,allNIPs());e._local=true;e.riwayatJabatan=[{thn:String(NOW_YEAR),jabatan:e.jabatan,unit:e.unit,aksi:'Aktivasi rekrutmen'}];
  DATA.push(e);saveLocal(e);
  pushActivity({ts:Date.now(),tgl:new Date().toISOString().slice(0,10),aksi:'Aktivasi Disetujui → Karyawan',type:'rekrut',col:'var(--pos)',nama:c.nama,id:e.id,unit:c.unit,ket:'NIP '+e.nip+' · '+rp(e.thp),by:(SESSION&&SESSION.nama)||'Master Admin'});
  recLog(id,'Aktivasi Disetujui → Karyawan','NIP '+e.nip);toast('✓ '+c.nama.split(',')[0]+' diaktivasi jadi karyawan (NIP '+e.nip+')');paint();}
+
+/* ============================================================
+   APPS: EMAIL (Gmail) · CHAT · CALENDAR   (gaya PaceUI)
+   ============================================================ */
+const MAIL_KEY='sdm-alwildan-mail';       // {inbox:[],sent:[],cfg:{finance,cc}}
+const CHAT_KEY='sdm-alwildan-chat';       // {roomId:[msg]}
+const CAL_KEY ='sdm-alwildan-calevents';  // kaldik tambahan manual
+
+/* ---- API helper lokal (paket statis tanpa backend; real API di versi Docker/sdm-v31) ---- */
+async function apiGet(p){throw new Error('Backend belum tersedia (mode statik)');}
+async function apiPost(p,b){throw new Error('Backend belum tersedia (mode statik)');}
+
+/* ---- Gmail OAuth (BACKEND: token singa di server, browser TIDAK lihat) ---- */
+let _gmailStatus={loaded:false,connected:false,email:''};
+async function refreshGmailStatus(){try{const r=await apiGet('/api/mail/status');_gmailStatus={loaded:true,connected:!!(r&&r.connected),email:(r&&r.email)||''};if(state.view==='email')paint();}catch(_){_gmailStatus={loaded:true,connected:false,email:''};}}
+function gmailChip(){const g=_gmailStatus;
+ if(g.connected)return `<span style="display:flex;align-items:center;gap:6px;color:var(--pos)">${ic('check')} Gmail susun: ${esc(g.email)}</span><button class="btn ghost" style="padding:8px 12px;font-size:12px" onclick="gmailDisconnect()">Disconect</button>`;
+ return `<button class="btn" style="padding:8px 12px;font-size:12px" onclick="gmailConnect()">${ic('mail')} Susun Gmail (OAuth server-side)</button>`;}
+function gmailConnect(){apiPost('/api/mail/auth-url').then(r=>{if(r&&r.url)location.href=r.url;else toast('⚠ '+(r&&r.error||'Backend belum siap'),true);}).catch(()=>toast('⚠ Backend /api/mail belum tersedia (mode statik) — deploy via Docker untuk Gmail',true));}
+function gmailDisconnect(){apiPost('/api/mail/disconnect').then(()=>{_gmailStatus={loaded:true,connected:false,email:''};toast('✓ Gmail disconect (server-side)');paint();}).catch(e=>toast(e.message,true));}
+async function gmailApiSend(to,cc,subj,body){const r=await apiPost('/api/mail/send',{to,cc,subj,body});if(!r||!r.ok)throw new Error((r&&r.error)||'Gmail gagal');return r;}
+
+function loadMail(){try{const m=JSON.parse(localStorage.getItem(MAIL_KEY));if(m&&m.inbox)return m;}catch(e){}return {inbox:[],sent:[],trash:[],cfg:{finance:'',cc:''},read:{}};}
+function saveMail(m){try{localStorage.setItem(MAIL_KEY,JSON.stringify(m));}catch(e){}}
+
+/* ---- seed inbox: pengajuan aktivasi dari Kadiv (yang belum diapprove) muncul sbg email ---- */
+function mailInbox(){const m=loadMail();
+ // email sistem: setiap kandidat 'diajukan' → 1 email pengajuan aktivasi
+ const sys=recMerged().filter(c=>c.aktivasi==='diajukan').map(c=>({
+   id:'akt-'+c.id, cid:c.id, sys:'aktivasi',
+   from:'Kadiv HR', fromMail:'kadiv.hr@alwildan.sch.id',
+   subj:'Pengajuan Aktivasi Karyawan — '+(c.nama||'').split(',')[0]+' ('+(c.unit||'')+')',
+   date:c.ajuanTgl||new Date().toISOString().slice(0,10),
+   star:false,
+   body:`Assalamu'alaikum wr. wb.\n\nMohon persetujuan Bapak untuk aktivasi kandidat berikut menjadi karyawan AL-WILDAN:\n\n• Nama    : ${c.nama||'-'}\n• Cabang  : ${c.unit||'-'}\n• Mapel   : ${c.mapel||'-'}\n• THP Set : ${c.thpSet||c.thpBersih?rp(c.thpSet||c.thpBersih):'-'}\n• Pantuhir: ${c.pantuhir||'-'}\n${c.beritaAcara?'• Berita Acara: '+c.beritaAcara+'\n':''}\nHasil interview akhir: ${c.interview||'—'}.\n\nSilakan tekan tombol "Setujui & Aktivasi via Email" untuk memproses aktivasi sekaligus menyiapkan nota ke Finance.\n\nJazaakumullahu khairan.\nKadiv HR`
+ }));
+ // gabung email manual/tersimpan
+ const merged=[...sys,...(m.inbox||[])];
+ // hilangkan duplikat kandidat yg sudah approved
+ return merged.filter(e=>!(e.sys==='aktivasi'&&recMerged().find(c=>c.id===e.cid&&c.aktivasi==='approved')));
+}
+
+function renderEmail(){const m=loadMail();const inbox=mailInbox();const sent=m.sent||[];
+ if(!_gmailStatus.loaded)refreshGmailStatus();
+ const folder=state.mailFolder||'inbox';const list=folder==='sent'?sent:folder==='trash'?(m.trash||[]):inbox;
+ const unread=inbox.filter(e=>!m.read[e.id]).length;
+ const sel=state.mailSel;const cur=list.find(e=>e.id===sel)||list[0];
+ const fMeta={finance:m.cfg.finance||'',cc:m.cfg.cc||''};
+ const fbtn=(k,ic2,lbl,n)=>`<button class="mail-folder ${folder===k?'on':''}" onclick="mailFolder('${k}')">${ic(ic2)}<span>${lbl}</span>${n?`<span class="mf-badge">${n}</span>`:''}</button>`;
+ return `${devBanner('Inbox contoh (development). Saat di-host: sambungkan ke Gmail API Anda (OAuth) — panduan ada di INTEGRASI_BETTER_AUTH_D1.md. Tombol "Setujui & Aktivasi via Email" akan memproses aktivasi + mengirim nota ke Finance lewat Gmail.')}
+ <div class="mail-cfg card" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+   ${ic('mail')}<b style="font-size:13px">Tujuan Nota Aktivasi → Finance</b>
+   <input id="finMail" placeholder="email Finance (mis. finance@alwildan.sch.id)" value="${esc(fMeta.finance)}" style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:12.5px;color:var(--ink);background:var(--surface)">
+   <input id="finCc" placeholder="cc (opsional)" value="${esc(fMeta.cc)}" style="flex:.7;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:12.5px;color:var(--ink);background:var(--surface)">
+   <button class="btn ghost" style="padding:8px 12px;font-size:12px" onclick="saveFinMail()">${ic('check')} Simpan Tujuan</button>
+    ${gmailChip()}
+ </div>
+ <div class="mail-shell card">
+   <div class="mail-side">
+     <button class="btn" style="width:100%;justify-content:center;margin-bottom:12px" onclick="composeMail()">${ic('plus')} Tulis Email</button>
+     ${fbtn('inbox','mail','Kotak Masuk',unread)}
+     ${fbtn('sent','send','Terkirim',0)}
+     ${fbtn('trash','trash','Sampah',0)}
+     <div class="mail-tag-h">LABEL</div>
+     <div class="mail-tag"><span class="dotc" style="background:var(--warn)"></span>Aktivasi Rekrutmen</div>
+     <div class="mail-tag"><span class="dotc" style="background:var(--info)"></span>Finance</div>
+   </div>
+   <div class="mail-list">
+     <div class="mail-list-h">${folder==='inbox'?'Kotak Masuk':folder==='sent'?'Terkirim':'Sampah'} <span>${list.length}</span></div>
+     ${list.length?list.map(e=>{const rd=folder==='sent'||m.read[e.id];const who=folder==='sent'?('Ke: '+(e.to||'')):e.from;
+       return `<div class="mail-item ${(cur&&cur.id===e.id)?'on':''} ${rd?'':'unread'}" onclick="mailOpen('${e.id}')">
+         <div class="mi-av" style="background:${e.sys==='aktivasi'?'var(--warn-bg)':'var(--info-bg)'};color:${e.sys==='aktivasi'?'var(--warn)':'var(--info)'}">${initials(who||'?')}</div>
+         <div class="mi-main"><div class="mi-top"><span class="mi-from">${esc((who||'').split(',')[0])}</span><span class="mi-date">${esc(e.date||'')}</span></div>
+         <div class="mi-subj">${e.sys==='aktivasi'?'<span class="mi-tagdot" style="background:var(--warn)"></span>':''}${esc(e.subj||'(tanpa subjek)')}</div>
+         <div class="mi-prev">${esc((e.body||'').replace(/\n/g,' ').slice(0,64))}…</div></div></div>`;}).join(''):'<div class="empty" style="padding:30px">Tidak ada email.</div>'}
+   </div>
+   <div class="mail-read">${cur?mailReadPane(cur,folder):'<div class="empty" style="margin:auto;padding:40px">Pilih email untuk dibaca</div>'}</div>
+ </div>`;}
+
+function mailReadPane(e,folder){const m=loadMail();const c=e.cid?recMerged().find(x=>x.id===e.cid):null;
+ const done=c&&c.aktivasi==='approved';
+ const who=folder==='sent'?('Ke: '+esc(e.to||'')):esc(e.from||'')+' <'+esc(e.fromMail||'')+'>';
+ let actions='';
+ if(e.sys==='aktivasi'&&!done){
+   if(can('recruitment.approve')){actions=`<div class="mail-actionbar">
+     <button class="btn" onclick="approveViaEmail('${e.cid}')">${ic('check')} Setujui & Aktivasi via Email</button>
+     <button class="btn ghost" onclick="composeReply('${e.id}')">${ic('reply')} Balas Kadiv</button>
+     <span class="hint" style="margin-left:auto">Aktivasi akan otomatis menyusun nota ke Finance</span></div>`;}
+   else actions=`<div class="mail-actionbar"><span class="hint">Hanya Admin Pusat yang dapat menyetujui aktivasi ini.</span></div>`;
+ } else if(done){actions=`<div class="mail-actionbar" style="background:var(--pos-bg)"><span style="color:var(--pos);font-weight:700">${ic('check')} Sudah diaktivasi menjadi karyawan.</span></div>`;}
+ return `<div class="mr-h"><div><div class="mr-subj">${esc(e.subj||'')}</div>
+   <div class="mr-meta"><span class="mi-av" style="width:34px;height:34px;background:var(--info-bg);color:var(--info)">${initials(e.from||e.to||'?')}</span><div><div style="font-weight:700;font-size:13px">${who}</div><div class="hint">${esc(e.date||'')}</div></div></div></div>
+   ${folder!=='trash'?`<button class="iconbtn" title="Hapus" onclick="mailTrash('${e.id}')">${ic('trash')}</button>`:''}</div>
+   ${actions}
+   <div class="mr-body">${esc(e.body||'').replace(/\n/g,'<br>')}</div>`;}
+
+function mailFolder(f){state.mailFolder=f;state.mailSel=null;paint();}
+function mailOpen(id){const m=loadMail();m.read[id]=1;saveMail(m);state.mailSel=id;paint();}
+function saveFinMail(){const m=loadMail();m.cfg.finance=(document.getElementById('finMail').value||'').trim();m.cfg.cc=(document.getElementById('finCc').value||'').trim();saveMail(m);toast('✓ Tujuan Finance disimpan');}
+function mailTrash(id){const m=loadMail();const src=mailInbox().find(e=>e.id===id)||(m.sent||[]).find(e=>e.id===id);if(src){m.trash=m.trash||[];m.trash.unshift(src);m.inbox=(m.inbox||[]).filter(e=>e.id!==id);m.sent=(m.sent||[]).filter(e=>e.id!==id);}saveMail(m);state.mailSel=null;toast('Dipindah ke sampah');paint();}
+
+/* ---- Aktivasi via Email: approve + susun draft nota ke Finance, lalu kirim ---- */
+function approveViaEmail(cid){const c=recMerged().find(x=>x.id===cid);if(!c)return;
+ const m=loadMail();
+ if(!m.cfg.finance){toast('⚠ Set dulu email Finance di atas',true);const fm=document.getElementById('finMail');if(fm)fm.focus();return;}
+ // 1) proses aktivasi (reuse logika utama)
+ approveAktivasi(cid);
+ // 2) susun draft nota ke Finance
+ const emp=DATA.find(e=>e.nama===c.nama&&e._local)||{};
+ const thp=c.thpSet||c.thpBersih||c.pengajuan||0;
+ const draft={
+   to:m.cfg.finance, cc:m.cfg.cc||'',
+   subj:'Nota Aktivasi Karyawan Baru — '+(c.nama||'').split(',')[0]+' ('+(c.unit||'')+')',
+   body:`Kepada Tim Finance,\n\nBerikut aktivasi karyawan baru yang telah DISETUJUI untuk diproses penggajiannya:\n\n• Nama     : ${c.nama||'-'}\n• NIP      : ${emp.nip||'(otomatis)'}\n• Cabang   : ${c.unit||'-'}\n• Jabatan  : ${c.mapel?'Guru '+c.mapel:'Karyawan'}\n• THP      : ${rp(thp)}\n• Mulai    : ${c.estimasiAktif||c.estimasi||new Date().toISOString().slice(0,10)}\n• Rekening : (mohon konfirmasi ke ybs)\n\nMohon diproses untuk periode gaji terdekat.\n\nHormat kami,\n${(SESSION&&SESSION.nama)||'Admin Pusat SDM'}\nAL-WILDAN ISLAMIC SCHOOL HOLDING`
+ };
+ openComposeModal(draft,'nota-finance');
+}
+
+/* ---- Compose modal (draft + kirim) ---- */
+function composeMail(){openComposeModal({to:'',cc:'',subj:'',body:''},'baru');}
+function composeReply(id){const e=mailInbox().find(x=>x.id===id);if(!e)return;openComposeModal({to:e.fromMail||'',cc:'',subj:'Re: '+(e.subj||''),body:'\n\n---\n'+(e.body||'')},'balas');}
+function composeReplyFinance(){const m=loadMail();openComposeModal({to:m.cfg.finance||'',cc:m.cfg.cc||'',subj:'',body:''},'baru');}
+function openComposeModal(d,tag){closeModal();const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:620px">
+   <div class="modal-h"><div class="avatar">${ic('send')}</div><div><div class="nm">Tulis Email${tag==='nota-finance'?' — Nota ke Finance':''}</div><div class="rl">${tag==='nota-finance'?'Aktivasi sudah diproses. Tinjau lalu kirim nota.':'Email dikirim via Gmail (OAuth susun di panel Email — tanpa susun hanya disimpan di Terkirim)'}}</div></div><button class="x" onclick="closeModal()">×</button></div>
+   <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+     <label class="cf-l">Kepada<input id="cmTo" value="${esc(d.to||'')}" placeholder="email tujuan"></label>
+     <label class="cf-l">Cc<input id="cmCc" value="${esc(d.cc||'')}" placeholder="cc (opsional)"></label>
+     <label class="cf-l">Subjek<input id="cmSubj" value="${esc(d.subj||'')}" placeholder="subjek email"></label>
+     <label class="cf-l">Isi<textarea id="cmBody" rows="11" style="font-family:inherit">${esc(d.body||'')}</textarea></label>
+   </div>
+   <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" onclick="sendMail()">${ic('send')} Kirim Email</button></div>
+ </div></div>`;
+ const w=document.createElement('div');w.id='modalRoot';w.innerHTML=html;document.body.appendChild(w);document.body.style.overflow='hidden';}
+async function sendMail(){const to=(document.getElementById('cmTo').value||'').trim();if(!to){toast('⚠ Isi email tujuan',true);return;}
+ const cc=(document.getElementById('cmCc').value||'').trim(),subj=document.getElementById('cmSubj').value||'',body=document.getElementById('cmBody').value||'';
+ const m=loadMail();const rec={id:'sent-'+Date.now(),to,cc,subj,body,date:new Date().toISOString().slice(0,10),from:(SESSION&&SESSION.nama)||'Admin'};
+ let via='local';
+ if(!_gmailStatus.loaded){try{await refreshGmailStatus();}catch(_){}}
+ if(_gmailStatus.connected){try{await gmailApiSend(to,cc,subj,body);via='gmail';}catch(e){toast('⚠ Gmail gagal: '+e.message,true);return;}}
+ else{toast('⚠ Gmail belum susun — email hanya disimpan di Terkirim (klik Susun Gmail di panel Email)',true);}
+ m.sent=m.sent||[];m.sent.unshift(rec);saveMail(m);
+ pushActivity({ts:Date.now(),tgl:rec.date,aksi:'Kirim Email'+(via==='gmail'?' via Gmail':''),type:'mail',col:'var(--info)',nama:rec.subj,id:'',unit:to,ket:'Terkirim ke '+to+(via==='gmail'?' (Gmail)':''),by:rec.from});
+ closeModal();toast(via==='gmail'?('✓ Email terkirim via Gmail ke '+to):('✓ Email disimpan ke Terkirim (lokal) · ke '+to));state.mailFolder='sent';state.mailSel=rec.id;paint();}
+
+/* ===================== APPS: CHAT ===================== */
+const CHAT_ROOMS=[
+ {id:'all',nama:'Grup Tim HR',sub:'Admin · Kadiv · Staff',grp:true},
+ {id:'master',nama:'Master Admin (Holding)',sub:'Admin Pusat',role:'master'},
+ {id:'kadiv_hr',nama:'Kadiv HR',sub:'Operasional & rekrutmen',role:'kadiv_hr'},
+ {id:'staff_hr',nama:'Staff HR',sub:'Interview & proses',role:'staff_hr'},
+];
+function loadChat(){try{const c=JSON.parse(localStorage.getItem(CHAT_KEY));if(c)return c;}catch(e){}
+ // seed contoh (hanya utk mode statik / sebelum backend)
+ return {all:[
+   {by:'Kadiv HR',role:'kadiv_hr',t:'Assalamualaikum, pengajuan aktivasi 3 kandidat AW20 sudah saya kirim ke email Admin ya.',ts:Date.now()-7200000},
+   {by:'Master Admin',role:'master',t:'Waalaikumsalam, siap saya cek & approve via email. Staff HR tolong pastikan hasil interview akhir sudah terisi.',ts:Date.now()-6900000},
+   {by:'Staff HR',role:'staff_hr',t:'Baik pak, 2 sudah "Lanjut", 1 masih "Hold" menunggu nego salary.',ts:Date.now()-6600000},
+ ]};}
+function saveChat(c){try{localStorage.setItem(CHAT_KEY,JSON.stringify(c));}catch(e){}}
+function loadChatMerged(room){/* server-first, fallback localStorage (statik) */
+ const local=loadChat()[room]||[];
+ const srv=(window._chatSrv&&window._chatSrv[room])||[];
+ const map=new Map();srv.forEach(m=>map.set(m.id||m.ts,m));local.forEach(m=>map.set('l'+m.ts,m));
+ return [...map.values()].sort((a,b)=>(a.ts||0)-(b.ts||0));}
+async function chatPull(){if(!apiGet)return;const room=state.chatRoom||'all';
+ try{const r=await apiGet('/api/chat?room='+encodeURIComponent(room));if(r&&Array.isArray(r.messages)){
+   window._chatSrv=window._chatSrv||{};window._chatSrv[room]=r.messages;if(state.view==='chat')paint();}}catch(_){}}
+function renderChat(){const room=state.chatRoom||'all';const msgs=loadChatMerged(room);
+ if(apiGet)setTimeout(chatPull,0);
+ const meRole=SESSION?SESSION.role:'master';const meName=roleLabelFull(meRole);
+ const srvOn=!!(window._chatSrv&&window._chatSrv[room]);
+ const roomInfo=CHAT_ROOMS.find(r=>r.id===room)||CHAT_ROOMS[0];
+ return `<div class="chat-shell card">
+   <div class="chat-side">
+     <div class="chat-side-h">Percakapan</div>
+     ${CHAT_ROOMS.map(r=>`<div class="chat-room ${room===r.id?'on':''}" onclick="chatRoom('${r.id}')">
+       <div class="cr-av ${r.grp?'grp':''}" ${r.role?`style="background:${roleColor(r.role)}20;color:${roleColor(r.role)}"`:''}>${r.grp?ic('users'):initials(r.nama)}</div>
+       <div class="cr-main"><div class="cr-nm">${esc(r.nama)}</div><div class="cr-sub">${esc(r.sub)}</div></div></div>`).join('')}
+   </div>
+   <div class="chat-main">
+     <div class="chat-top"><div class="cr-av ${roomInfo.grp?'grp':''}" ${roomInfo.role?`style="background:${roleColor(roomInfo.role)}20;color:${roleColor(roomInfo.role)}"`:''}>${roomInfo.grp?ic('users'):initials(roomInfo.nama)}</div><div><div style="font-weight:700">${esc(roomInfo.nama)}</div><div class="hint">${esc(roomInfo.sub)}${srvOn?' · tersinkron ke server':' · mode lokal (statik)'}</div></div></div>
+     <div class="chat-body" id="chatBody">${msgs.length?msgs.map(mm=>{const mine=mm.role===meRole;
+       return `<div class="cb-row ${mine?'me':''}"><div class="cb-av" style="background:${roleColor(mm.role)}20;color:${roleColor(mm.role)}">${initials(mm.by)}</div>
+       <div class="cb-bub"><div class="cb-by">${esc(mm.by)}</div><div class="cb-t">${esc(mm.t||mm.msg)}</div><div class="cb-ts">${chatTime(mm.ts)}</div></div></div>`;}).join(''):'<div class="empty" style="margin:auto">Belum ada pesan. Mulai diskusi.</div>'}</div>
+     <div class="chat-input"><input id="chatMsg" placeholder="Tulis pesan sebagai ${esc(meName)}…" onkeydown="if(event.key==='Enter')chatSend()"><button class="btn" onclick="chatSend()">${ic('send')}</button></div>
+   </div>
+ </div>`;}
+function roleColor(r){return {master:'#1F4E79',kadiv_hr:'#7a3b0a',staff_hr:'#16a34a',karyawan:'#6b7280'}[r]||'#6b7280';}
+function chatTime(ts){const d=new Date(ts);return d.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+function chatRoom(id){state.chatRoom=id;paint();setTimeout(scrollChat,50);setTimeout(chatPull,80);}
+function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
+async function chatSend(){const inp=document.getElementById('chatMsg');if(!inp)return;const t=(inp.value||'').trim();if(!t)return;
+ const room=state.chatRoom||'all';
+ const pushLocal=()=>{const c=loadChat();c[room]=c[room]||[];c[room].push({by:roleLabelFull(SESSION.role),role:SESSION.role,t,ts:Date.now()});saveChat(c);inp.value='';paint();setTimeout(scrollChat,30);};
+ const ok=apiPost&&await apiPost('/api/chat',{room,text:t}).then(r=>r&&r.ok).catch(()=>false);
+ if(ok){inp.value='';chatPull();}else pushLocal();
+ if(!ok&&window._chatSrv)toast('Chat tersimpan lokal (server off)','');}
+function roleColor(r){return {master:'#1F4E79',kadiv_hr:'#7a3b0a',staff_hr:'#16a34a',karyawan:'#6b7280'}[r]||'#6b7280';}
+function chatTime(ts){const d=new Date(ts);return d.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+function chatRoom(id){state.chatRoom=id;paint();setTimeout(scrollChat,30);}
+function scrollChat(){const b=document.getElementById('chatBody');if(b)b.scrollTop=b.scrollHeight;}
+function chatSend(){const inp=document.getElementById('chatMsg');if(!inp)return;const t=(inp.value||'').trim();if(!t)return;
+ const c=loadChat();const room=state.chatRoom||'all';c[room]=c[room]||[];
+ c[room].push({by:roleLabelFull(SESSION.role),role:SESSION.role,t,ts:Date.now()});saveChat(c);inp.value='';paint();setTimeout(scrollChat,30);}
+
+/* ===================== APPS: CALENDAR ===================== */
+/* Kaldik AL-WILDAN 2026/2027 (contoh, bisa diedit) */
+const KALDIK=(Array.isArray(window.KALDIK_DATA)&&window.KALDIK_DATA.length)?window.KALDIK_DATA:[
+ {d:'2026-07-14',t:'Awal Tahun Ajaran 2026/2027',k:'kaldik'},
+ {d:'2026-07-14',t:'MPLS / Taaruf Siswa Baru',k:'kaldik'},
+ {d:'2026-08-17',t:'HUT RI — Upacara & Lomba',k:'libur'},
+ {d:'2026-09-15',t:'Penilaian Tengah Semester Ganjil',k:'ujian'},
+ {d:'2026-12-08',t:'Penilaian Akhir Semester Ganjil',k:'ujian'},
+ {d:'2026-12-19',t:'Pembagian Rapor Semester Ganjil',k:'kaldik'},
+ {d:'2026-12-22',t:'Libur Semester Ganjil',k:'libur'},
+ {d:'2027-01-05',t:'Awal Semester Genap',k:'kaldik'},
+ {d:'2027-03-09',t:'Penilaian Tengah Semester Genap',k:'ujian'},
+ {d:'2027-06-08',t:'Penilaian Akhir Tahun',k:'ujian'},
+ {d:'2027-06-20',t:'Pembagian Rapor & Akhir Tahun Ajaran',k:'kaldik'},
+];
+function calEvents(y,mo){/* kumpulkan event utk bulan (y,mo 0-based) */
+ const evs=[];
+ // 1) kaldik
+ KALDIK.forEach(e=>{const dt=new Date(e.d);if(dt.getFullYear()===y&&dt.getMonth()===mo)evs.push({day:dt.getDate(),t:e.t,k:e.k});});
+ // 2) rekrutmen: estimasi selesai & tanggal aktif & deadline pengajuan
+ recMerged().forEach(c=>{
+   const push=(ds,label,k)=>{if(!ds)return;const dt=new Date(ds);if(!isNaN(dt)&&dt.getFullYear()===y&&dt.getMonth()===mo)evs.push({day:dt.getDate(),t:label,k});};
+   const nm=(c.nama||'').split(',')[0];
+   if(c.aktivasi!=='approved'){push(c.estimasi,'🎯 Est. selesai: '+nm+' ('+(c.unit||'')+')','rekrut');}
+   push(c.estimasiAktif,'✅ Aktif: '+nm+' ('+(c.unit||'')+')','aktif');
+ });
+ return evs;}
+function renderCalendar(){const now=new Date();const y=state.calY!=null?state.calY:2026;const mo=state.calM!=null?state.calM:6; // default Juli 2026
+ const first=new Date(y,mo,1);const startDow=(first.getDay()+6)%7; // Senin=0
+ const days=new Date(y,mo+1,0).getDate();
+ const evs=calEvents(y,mo);const byDay={};evs.forEach(e=>{(byDay[e.day]=byDay[e.day]||[]).push(e);});
+ const monNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ const kcol={kaldik:'var(--info)',libur:'var(--neg)',ujian:'#7a3b0a',rekrut:'var(--warn)',aktif:'var(--pos)'};
+ let cells='';for(let i=0;i<startDow;i++)cells+='<div class="cal-cell out"></div>';
+ for(let d=1;d<=days;d++){const list=byDay[d]||[];const today=(y===now.getFullYear()&&mo===now.getMonth()&&d===now.getDate());
+   cells+=`<div class="cal-cell${today?' today':''}"${list.length?` onclick="calDay(${y},${mo},${d})" style="cursor:pointer"`:''}><div class="cal-d">${d}</div>${list.slice(0,3).map(e=>`<div class="cal-ev" style="background:color-mix(in srgb,${kcol[e.k]} 15%,transparent);color:${kcol[e.k]};border-left:2px solid ${kcol[e.k]}" title="${esc(e.t)}">${esc(e.t.length>22?e.t.slice(0,22)+'…':e.t)}</div>`).join('')}${list.length>3?`<div class="cal-more">+${list.length-3} lagi</div>`:''}</div>`;}
+ // agenda mendatang (rekrutmen)
+ const upcoming=[];recMerged().forEach(c=>{if(c.aktivasi==='approved')return;const nm=(c.nama||'').split(',')[0];[['estimasi','🎯 Estimasi selesai','rekrut'],['estimasiAktif','✅ Tanggal aktif','aktif']].forEach(([f,lb,k])=>{if(c[f]){const dt=new Date(c[f]);if(!isNaN(dt)&&dt>=new Date(now.toDateString()))upcoming.push({dt,t:lb+': '+nm,sub:(c.unit||'')+' · '+(c.mapel||''),k});}});});
+ upcoming.sort((a,b)=>a.dt-b.dt);
+ return `${devBanner('Kalender proses rekrutmen (estimasi selesai & tanggal aktif) digabung dengan kaldik akademik AL-WILDAN. Data rekrutmen otomatis dari panel Rekrutmen.')}
+ <div class="cal-wrap">
+   <div class="cal-main card">
+     <div class="cal-top"><button class="iconbtn" onclick="calNav(-1)">‹</button><div class="cal-title">${monNames[mo]} ${y}</div><button class="iconbtn" onclick="calNav(1)">›</button>
+       <button class="btn ghost" style="margin-left:auto;padding:6px 11px;font-size:12px" onclick="calToday()">Hari ini</button></div>
+     <div class="cal-legend">${Object.entries({'Kaldik':'var(--info)','Libur':'var(--neg)','Ujian/PTS':'#7a3b0a','Estimasi Rekrutmen':'var(--warn)','Tgl Aktif':'var(--pos)'}).map(([k,v])=>`<span><i style="background:${v}"></i>${k}</span>`).join('')}</div>
+     <div class="cal-grid-h">${['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(d=>`<div>${d}</div>`).join('')}</div>
+     <div class="cal-grid">${cells}</div>
+   </div>
+   <div class="cal-agenda card"><div class="panel-h"><h3>Agenda Rekrutmen Mendatang</h3><span class="hint">durasi proses</span></div>
+     ${upcoming.length?upcoming.slice(0,12).map(u=>`<div class="ag-item" style="border-left:3px solid ${kcol[u.k]}"><div class="ag-dt">${u.dt.toLocaleDateString('id-ID',{day:'2-digit',month:'short'})}</div><div><div class="ag-t">${esc(u.t)}</div><div class="ag-sub">${esc(u.sub)}</div></div></div>`).join(''):'<div class="empty" style="padding:24px">Belum ada estimasi terjadwal. Set estimasi di panel Rekrutmen (Edit Estimasi).</div>'}
+   </div>
+ </div>`;}
+function calNav(delta){let y=state.calY!=null?state.calY:2026,m=(state.calM!=null?state.calM:6)+delta;if(m<0){m=11;y--;}if(m>11){m=0;y++;}state.calY=y;state.calM=m;paint();}
+function calToday(){const n=new Date();state.calY=n.getFullYear();state.calM=n.getMonth();paint();}
+function calDay(y,mo,d){const evs=calEvents(y,mo).filter(e=>e.day===d);const kcol={kaldik:'var(--info)',libur:'var(--neg)',ujian:'#7a3b0a',rekrut:'var(--warn)',aktif:'var(--pos)'};
+ const monNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:440px"><div class="modal-h"><div class="avatar">${ic('calendar')}</div><div><div class="nm">${d} ${monNames[mo]} ${y}</div><div class="rl">${evs.length} agenda</div></div><button class="x" onclick="closeModal()">×</button></div>
+   <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">${evs.map(e=>`<div style="display:flex;gap:9px;align-items:center;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,${kcol[e.k]} 8%,transparent)"><span class="d" style="width:9px;height:9px;border-radius:50%;background:${kcol[e.k]}"></span><span style="font-size:13px">${esc(e.t)}</span></div>`).join('')}</div></div></div>`;
+ const w=document.createElement('div');w.id='modalRoot';w.innerHTML=html;document.body.appendChild(w);document.body.style.overflow='hidden';}
 
 /* ===================== ACCOUNT PANEL (Holding) ===================== */
 function renderAccounts(){const accs=loadAccts();
