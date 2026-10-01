@@ -12,6 +12,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || '';
+if (BETTER_AUTH_SECRET.length < 32 || BETTER_AUTH_SECRET.includes('DEV-ONLY') || BETTER_AUTH_SECRET.includes('ganti-dengan')) {
+  console.error('FATAL: BETTER_AUTH_SECRET wajib ≥32 karakter acak di .env (openssl rand -base64 32).');
+  process.exit(1);
+}
+
 export const auth = betterAuth({
   // File DB SQLite; dibuat otomatis saat `npx @better-auth/cli migrate` dijalankan.
   database: new Database(process.env.AUTH_DB_PATH || path.join(__dirname, 'auth.db')),
@@ -20,7 +26,7 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
 
   // Kunci rahasia untuk enkripsi sesi. Buat dengan: openssl rand -base64 32
-  secret: process.env.BETTER_AUTH_SECRET || 'DEV-ONLY-ganti-dengan-secret-acak-panjang',
+  secret: BETTER_AUTH_SECRET,
 
   emailAndPassword: {
     enabled: true,
