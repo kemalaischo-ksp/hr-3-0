@@ -223,6 +223,14 @@ tbody tr:last-child td{border-bottom:0}
 .modal{background:var(--surface);border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid var(--line)}
 .modal-h{padding:18px;border-bottom:1px solid var(--line);display:flex;gap:13px;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1}
 .modal-h .avatar{width:52px;height:52px;font-size:17px;border-radius:11px}
+.ph-zoom{padding:0;border:0;background:none;cursor:zoom-in;border-radius:11px;flex:none;transition:transform .15s,box-shadow .15s}
+.ph-zoom:hover{transform:scale(1.05);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 35%,transparent)}
+.ph-lb{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);display:grid;place-items:center;padding:24px;cursor:zoom-out;animation:phIn .18s ease}
+.ph-lb figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%}
+.ph-lb img{max-width:min(92vw,720px);max-height:80vh;border-radius:14px;object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,.6);background:var(--surface-3);animation:phZoom .22s ease}
+.ph-lb figcaption{color:#fff;font-weight:700;font-size:15px;text-align:center}.ph-lb figcaption span{display:block;font-weight:400;font-size:12px;opacity:.75;margin-top:2px}
+.ph-lb .x{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:10px;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:22px;cursor:pointer}
+@keyframes phIn{from{opacity:0}to{opacity:1}}@keyframes phZoom{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
 .modal-h .nm{font-size:16px;font-weight:800}
 .modal-h .rl{font-size:12px;color:var(--ink-3);margin-top:2px}
 .modal-h .x{margin-left:auto;border:0;background:var(--surface-2);width:31px;height:31px;border-radius:8px;cursor:pointer;color:var(--ink-2);font-size:17px;flex:none}
@@ -526,7 +534,7 @@ tbody tr:last-child td{border-bottom:0}
 
 @media print{
   body{background:#fff!important}
-  .app,.sidebar,.topbar,.scrim,.chart-tip,.toast,#modalRoot{display:none!important}
+  .app,.sidebar,.topbar,.scrim,.chart-tip,.toast,#modalRoot,#photoLB{display:none!important}
   .no-print{display:none!important}
   #printArea{display:block!important;position:absolute;inset:0;margin:0;padding:0}
   .official{border:0;max-width:100%;box-shadow:none}
@@ -1627,7 +1635,7 @@ function openEmp(id){const e=DATA.find(x=>x.id==id);if(!e)return;
  const kv=(l,v)=>`<div class="k"><div class="l">${l}</div><div class="v">${v?esc(v):'<span style="color:var(--ink-3);font-weight:400">—</span>'}</div></div>`;
  const edu=[e.s1univ&&`S1 · ${e.s1univ} (${e.s1prodi||'-'})${e.s1ipk?' · IPK '+e.s1ipk:''}`,e.s2univ&&`S2 · ${e.s2univ}`,e.s3univ&&`S3 · ${e.s3univ}`].filter(Boolean).join('<br>');
  const html=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
-     <div class="modal-h">${avatar(e,'avatar')}<div><div class="nm">${esc(e.nama)}</div><div class="rl">${esc(e.jabatan||'')}${e.posisi&&e.posisi!==e.jabatan?' · '+esc(e.posisi):''}</div></div><button class="x" onclick="closeModal()">×</button></div>
+     <div class="modal-h">${e.photo?`<button class="ph-zoom" title="Lihat foto" onclick="viewPhoto('${e.id}')">${avatar(e,'avatar')}</button>`:avatar(e,'avatar')}<div><div class="nm">${esc(e.nama)}</div><div class="rl">${esc(e.jabatan||'')}${e.posisi&&e.posisi!==e.jabatan?' · '+esc(e.posisi):''}</div></div><button class="x" onclick="closeModal()">×</button></div>
      <div class="modal-sec">Kepegawaian</div><div class="kv">${kv('NIP',e.nip)}${kv('Unit / Cabang',e.unit)}${kv('Tahun Aktif',e.thnAktif)}${kv('THP / bulan',e.thp>0?rp(e.thp):'')}${kv('Gaji Diajukan',e.gajiAjuan>0?rp(e.gajiAjuan):'')}${kv('Mata Pelajaran',e.mapelGuru||e.mapel)}${kv('Status',e.status)}</div>
      <div class="modal-sec">Data Pribadi</div><div class="kv">${kv('Gender',e.gender)}${kv('Usia',e.usia)}${kv('Tempat, Tgl Lahir',[e.tmpLahir,e.tglLahir].filter(Boolean).join(', '))}${kv('NIK KTP',e.nikKtp)}${kv('Alamat',e.alamat)}${kv('Transport',e.transport)}${kv('Tinggi / Berat',[e.tinggi&&e.tinggi+' cm',e.berat&&e.berat+' kg'].filter(Boolean).join(' / '))}${kv('Email',e.email)}</div>
      <div class="modal-sec">Pendidikan</div><div class="kv"><div class="k" style="grid-column:1/-1"><div class="l">Riwayat Pendidikan</div><div class="v">${edu||'<span style=\"color:var(--ink-3);font-weight:400\">—</span>'}</div></div></div>
@@ -1649,8 +1657,14 @@ function openEmp(id){const e=DATA.find(x=>x.id==id);if(!e)return;
      </div>
      <div style="height:6px"></div></div></div>`;
  const d=document.createElement('div');d.id='modalRoot';d.innerHTML=html;document.body.appendChild(d);document.body.style.overflow='hidden';}
-function closeModal(){const m=document.getElementById('modalRoot');if(m)m.remove();document.body.style.overflow='';}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+function viewPhoto(id){const e=DATA.find(x=>x.id==id);if(!e||!e.photo)return;closePhoto();
+ const big=photoURL(e.photo).replace(/=w\d+$/,'=w1200');
+ const d=document.createElement('div');d.id='photoLB';d.className='ph-lb';d.onclick=closePhoto;
+ d.innerHTML=`<button class="x" title="Tutup">×</button><figure><img src="${esc(big)}" alt="${esc(e.nama)}" referrerpolicy="no-referrer" onclick="event.stopPropagation()" onerror="this.onerror=null;this.src='${esc(photoURL(e.photo))}'"><figcaption>${esc(e.nama)}<span>${esc(e.jabatan||'')}${e.unit?' · '+esc(e.unit):''}</span></figcaption></figure>`;
+ document.body.appendChild(d);}
+function closePhoto(){const p=document.getElementById('photoLB');if(p){p.remove();return true;}return false;}
+function closeModal(){closePhoto();const m=document.getElementById('modalRoot');if(m)m.remove();document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!closePhoto())closeModal();}});
 
 /* ---------- chrome ---------- */
 function buildNav(){let nav;

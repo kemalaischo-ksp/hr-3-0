@@ -19,6 +19,7 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL = "https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send";
 const GMAIL_LIST_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+const GMAIL_PROFILE_URL = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
 // Kirim (gmail.send) + baca Kotak Masuk (gmail.readonly). Dipisah spasi.
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly";
 
@@ -87,9 +88,16 @@ export function mailRoutes(pool, { secure = false } = {}) {
     if (!(await hasPermOrMaster(c))) return c.json({ connected: false, error: "Akses ditolak." }, 403);
     const res = await pool.query("SELECT id, email, refresh_enc FROM mail_tokens WHERE id=1");
     const row = res.rows[0];
-    if (!row || !row.refresh_enc) return c.json({ connected: false });
-    const dec = await decryptSecret(cfg().clientSecret ? process.env.AUTH_SECRET : process.env.AUTH_SECRET, row.refresh_enc);
-    return c.json({ connected: !!dec, email: row.email || "" });
+    const { clientId, clientSecret, redirectUri } = cfg();
+    // diagnosa konfigurasi (secret tidak pernah dikirim, hanya ada/tidaknya)
+    const diag = {
+      clientId: clientId ? clientId.slice(0, 12) + "…" + clientId.slice(-28) : "",
+      hasSecret: !!clientSecret && !/^ganti/i.test(clientSecret),
+      redirectUri,
+    };
+    if (!row || !row.refresh_enc) return c.json({ connected: false, diag });
+    const dec = await decryptSecret(process.env.AUTH_SECRET, row.refresh_enc);
+    return c.json({ connected: !!dec, email: row.email || "", diag });
   });
 
   // POST /api/mail/auth-url → { url } (PKCE; state stored hashed di DB 10 min)
@@ -130,19 +138,15 @@ export function mailRoutes(pool, { secure = false } = {}) {
     const state = c.req.query("state") || "";
     const errQ = c.req.query("error") || "";
     const feBase = process.env.PUBLIC_DOMAIN ? `${secure ? "https" : "http"}://${process.env.PUBLIC_DOMAIN}` : "http://127.0.0.1:3000";
-    if (errQ || !code || !state) {
-      return c.redirect(`${feBase}/?mail=oauth-err`);
-    }
+    const fail = (why) => c.redirect(`${feBase}/?mail=oauth-err&why=${encodeURIComponent(String(why).slice(0, 120))}`);
+    if (errQ) return fail("google:" + errQ);
+    if (!code || !state) return fail("no_code");
     const res = await pool.query("SELECT verifier, user_id, expires_at FROM mail_oauth_state WHERE state=$1", [state]);
     const row = res.rows[0];
-    if (!row || row.expires_at < Date.now()) {
-      return c.redirect(`${feBase}/?mail=oauth-err`);
-    }
+    if (!row || Number(row.expires_at) < Date.now()) return fail("state_expired");
     await pool.query("DELETE FROM mail_oauth_state WHERE state=$1", [state]);
     const { clientId, clientSecret, redirectUri } = cfg();
-    if (!clientId || !clientSecret) {
-      return c.redirect(`${feBase}/?mail=oauth-err`);
-    }
+    if (!clientId || !clientSecret || /^ganti/i.test(clientSecret)) return fail("no_secret");
     // token exchange (client_secret hanya dari server)
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
@@ -158,18 +162,25 @@ export function mailRoutes(pool, { secure = false } = {}) {
     });
     const tok = await tokenRes.json().catch(() => ({}));
     if (!tok.refresh_token || tok.error) {
-      await logAudit(pool, { aksi: "mail_oauth_exchange_fail", rincian: tok.error || "no refresh_token", userId: row.user_id });
-      return c.redirect(`${feBase}/?mail=oauth-err`);
+      const why = tok.error ? "exchange:" + tok.error : "no_refresh_token";
+      await logAudit(pool, { aksi: "mail_oauth_exchange_fail", rincian: why + (tok.error_description ? " — " + tok.error_description : ""), userId: row.user_id });
+      return fail(why);
     }
+    // response token Google tidak memuat email → ambil dari profil Gmail
+    let email = "";
+    try {
+      const pr = await fetch(GMAIL_PROFILE_URL, { headers: { Authorization: "Bearer " + tok.access_token } });
+      if (pr.ok) email = (await pr.json()).emailAddress || "";
+    } catch {}
     const enc = await encryptSecret(process.env.AUTH_SECRET, tok.refresh_token);
     await pool.query(
       `INSERT INTO mail_tokens (id, email, refresh_enc, access_token, expires_at, updated_at)
        VALUES (1,$1,$2,$3,$4,$5)
        ON CONFLICT (id) DO UPDATE SET email=$1, refresh_enc=$2, access_token=$3, expires_at=$4, updated_at=$5`,
-      [tok.email || "", enc, tok.access_token || "", Date.now() + (tok.expires_in || 3600) * 1000, Date.now()]
+      [email, enc, tok.access_token || "", Date.now() + (tok.expires_in || 3600) * 1000, Date.now()]
     );
-    await logAudit(pool, { aksi: "mail_oauth_connected", rincian: tok.email || "", userId: row.user_id });
-    await logActivity(pool, { aksi: "Gmail susun (OAuth)", type: "mail", nama: tok.email, by: "OAuth" });
+    await logAudit(pool, { aksi: "mail_oauth_connected", rincian: email, userId: row.user_id });
+    await logActivity(pool, { aksi: "Gmail tersambung (OAuth)", type: "mail", nama: email, by: "OAuth" });
     return c.redirect(`${feBase}/?mail=connected`);
   });
 
